@@ -1,0 +1,26 @@
+package io.scalecube.services.benchmarks;
+
+import static io.scalecube.services.benchmarks.BenchmarkService.ONE_WAY;
+
+import io.scalecube.services.ServiceCall;
+
+import com.codahale.metrics.Timer;
+
+public class OneWayCallBenchmarksRunner {
+
+  public static void main(String[] args) {
+    BenchmarksSettings settings = BenchmarksSettings.from(args).build();
+    ServicesBenchmarksState state = new ServicesBenchmarksState(settings, new BenchmarkServiceImpl());
+
+    state.blockLastPublisher(benchmarksState -> {
+
+      ServiceCall serviceCall = state.serviceCall();
+      Timer timer = state.timer("timer");
+
+      return i -> {
+        Timer.Context timeContext = timer.time();
+        return serviceCall.oneWay(ONE_WAY).doOnTerminate(timeContext::stop);
+      };
+    });
+  }
+}
