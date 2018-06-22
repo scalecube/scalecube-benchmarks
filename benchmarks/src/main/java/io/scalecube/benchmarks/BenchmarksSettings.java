@@ -1,4 +1,4 @@
-package io.scalecube.services.benchmarks;
+package io.scalecube.benchmarks;
 
 import com.codahale.metrics.MetricRegistry;
 
@@ -18,8 +18,8 @@ public class BenchmarksSettings {
   private static final int N_THREADS = Runtime.getRuntime().availableProcessors();
   private static final Duration EXECUTION_TASK_TIME = Duration.ofSeconds(60);
   private static final Duration REPORTER_PERIOD = Duration.ofSeconds(10);
-  public static final TimeUnit DURATION_UNIT = TimeUnit.NANOSECONDS;
-  public static final TimeUnit RATE_UNIT = TimeUnit.SECONDS;
+  private static final TimeUnit DURATION_UNIT = TimeUnit.MICROSECONDS;
+  private static final TimeUnit RATE_UNIT = TimeUnit.SECONDS;
 
   private final int nThreads;
   private final Duration executionTaskTime;
@@ -126,8 +126,8 @@ public class BenchmarksSettings {
 
     private Builder() {}
 
-    public Builder nThreads(Integer nThreads) {
-      this.nThreads = nThreads;
+    public Builder nThreads(Integer numThreads) {
+      this.nThreads = numThreads;
       return this;
     }
 

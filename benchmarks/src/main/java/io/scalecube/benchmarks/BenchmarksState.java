@@ -1,4 +1,4 @@
-package io.scalecube.services.benchmarks;
+package io.scalecube.benchmarks;
 
 import com.codahale.metrics.ConsoleReporter;
 import com.codahale.metrics.CsvReporter;
@@ -14,14 +14,13 @@ import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.time.Duration;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import java.util.stream.LongStream;
 
-public class BenchmarksState {
+public class BenchmarksState<T extends BenchmarksState<T>> {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(BenchmarksState.class);
 
@@ -45,6 +44,9 @@ public class BenchmarksState {
     // NOP
   }
 
+  /**
+   * Executes starting of the state, also it includes running of {@link BenchmarksState#beforeAll}.
+   */
   public final void start() {
     if (!started.compareAndSet(false, true)) {
       throw new IllegalStateException("BenchmarksState is already started");
@@ -65,18 +67,23 @@ public class BenchmarksState {
 
     scheduler = Schedulers.fromExecutor(Executors.newFixedThreadPool(settings.nThreads()));
 
-    Duration reporterPeriod = settings.reporterPeriod();
-    consoleReporter.start(reporterPeriod.toMillis(), TimeUnit.MILLISECONDS);
-    csvReporter.start(reporterPeriod.toMillis(), TimeUnit.MILLISECONDS);
+    beforeAll();
+
+    consoleReporter.start(settings.reporterPeriod().toMillis(), TimeUnit.MILLISECONDS);
+    csvReporter.start(1, TimeUnit.DAYS);
 
     Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-      consoleReporter.report();
-      csvReporter.report();
+      if (started.get()) {
+        csvReporter.report();
+        consoleReporter.report();
+      }
     }));
 
-    beforeAll();
   }
 
+  /**
+   * Executes shutdown process of the state, also it includes running of {@link BenchmarksState#afterAll}.
+   */
   public final void shutdown() {
     if (!started.compareAndSet(true, false)) {
       throw new IllegalStateException("BenchmarksState is not started");
@@ -103,23 +110,51 @@ public class BenchmarksState {
     return scheduler;
   }
 
+  /**
+   * Returns timer with specified name.
+   *
+   * @param name name
+   * @return timer with specified name
+   */
   public Timer timer(String name) {
     return settings.registry().timer(settings.taskName() + "-" + name);
   }
 
+  /**
+   * Returns meter with specified name.
+   *
+   * @param name name
+   * @return meter with specified name
+   */
   public Meter meter(String name) {
     return settings.registry().meter(settings.taskName() + "-" + name);
   }
 
+  /**
+   * Returns histogram with specified name.
+   *
+   * @param name name
+   * @return histogram with specified name
+   */
   public Histogram histogram(String name) {
     return settings.registry().histogram(settings.taskName() + "-" + name);
   }
 
-  public final Object blockLastObject(Function<BenchmarksState, Function<Long, Object>> func) {
+  /**
+   * Runs given function in the state. It also executes {@link BenchmarksState#start()} before and
+   * {@link BenchmarksState#shutdown()} after.
+   * <p>
+   * NOTICE: It's only for synchronous code.
+   * </p>
+   *
+   * @param func function
+   */
+  public final void runForSync(Function<T, Function<Long, Object>> func) {
     try {
       start();
-      Function<Long, Object> func1 = func.apply(this);
-      return Flux.merge(Flux.fromStream(LongStream.range(0, Long.MAX_VALUE).boxed())
+      // noinspection unchecked
+      Function<Long, Object> func1 = func.apply((T) this);
+      Flux.merge(Flux.fromStream(LongStream.range(0, Long.MAX_VALUE).boxed())
           .publishOn(scheduler())
           .map(func1))
           .take(settings.executionTaskTime())
@@ -129,11 +164,18 @@ public class BenchmarksState {
     }
   }
 
-  public final Object blockLastPublisher(Function<BenchmarksState, Function<Long, Publisher<?>>> func) {
+  /**
+   * Runs given function in the state. It also executes {@link BenchmarksState#start()} before and
+   * {@link BenchmarksState#shutdown()} after. NOTICE: It's only for asynchronous code.
+   *
+   * @param func function
+   */
+  public final void runForAsync(Function<T, Function<Long, Publisher<?>>> func) {
     try {
       start();
-      Function<Long, Publisher<?>> func1 = func.apply(this);
-      return Flux.merge(Flux.fromStream(LongStream.range(0, Long.MAX_VALUE).boxed())
+      // noinspection unchecked
+      Function<Long, Publisher<?>> func1 = func.apply((T) this);
+      Flux.merge(Flux.fromStream(LongStream.range(0, Long.MAX_VALUE).boxed())
           .publishOn(scheduler())
           .map(func1))
           .take(settings.executionTaskTime())
