@@ -90,13 +90,7 @@
 
     <dependencyManagement>
         <dependencies>
-            <dependency>
-                <groupId>${project.groupId}</groupId>
-                <artifactId>scalecube-services-api</artifactId>
-                <version>${scalecube-services-api.version}</version>
-                <optional>true</optional>
-                <scope>provided</scope>
-            </dependency>
+
             <dependency>
                 <groupId>io.projectreactor</groupId>
                 <artifactId>reactor-test</artifactId>
