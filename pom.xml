@@ -77,16 +77,6 @@
         <maven-javadoc-plugin.version>2.10.4</maven-javadoc-plugin.version>
         <maven-shade-plugin.version>3.1.0</maven-shade-plugin.version>
         <maven-enforcer-plugin.version>3.0.0-M2</maven-enforcer-plugin.version>
-
-        <!--<maven-compiler-plugin.version>3.7.0</maven-compiler-plugin.version>-->
-        <!--<maven-source-plugin.version>3.0.1</maven-source-plugin.version>-->
-        <!--<maven-javadoc-plugin.version>2.10.4</maven-javadoc-plugin.version>-->
-        <!--<maven-surefire-plugin.version>2.21.0</maven-surefire-plugin.version>-->
-        <!--<maven-gpg-plugin.version>1.6</maven-gpg-plugin.version>-->
-        <!--<nexus-staging-maven-plugin.version>1.6.8</nexus-staging-maven-plugin.version>-->
-        <!--<maven-release-plugin.version>2.5.3</maven-release-plugin.version>-->
-        <!--<maven-enforcer-plugin.version>3.0.0-M1</maven-enforcer-plugin.version>-->
-        <!--<maven-shade-plugin.version>3.1.0</maven-shade-plugin.version>-->
     </properties>
 
     <dependencyManagement>
@@ -117,34 +107,6 @@
             </dependency>
         </dependencies>
     </dependencyManagement>
-
-    <!--<build>-->
-    <!--<plugins>-->
-    <!--<plugin>-->
-    <!--<groupId>org.apache.maven.plugins</groupId>-->
-    <!--<artifactId>maven-shade-plugin</artifactId>-->
-    <!--<version>${maven-shade-plugin.version}</version>-->
-    <!--<executions>-->
-    <!--<execution>-->
-    <!--<id>default</id>-->
-    <!--<phase>package</phase>-->
-    <!--<goals>-->
-    <!--<goal>shade</goal>-->
-    <!--</goals>-->
-    <!--<configuration>-->
-    <!--<transformers>-->
-    <!--<transformer-->
-    <!--implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>-->
-    <!--</transformers>-->
-    <!--<outputDirectory>${project.build.directory}</outputDirectory>-->
-    <!--<createDependencyReducedPom>false</createDependencyReducedPom>-->
-    <!--<shadedArtifactAttached>true</shadedArtifactAttached>-->
-    <!--</configuration>-->
-    <!--</execution>-->
-    <!--</executions>-->
-    <!--</plugin>-->
-    <!--</plugins>-->
-    <!--</build>-->
 
     <build>
         <plugins>
@@ -291,10 +253,6 @@
                             </goals>
                             <configuration>
                                 <transformers>
-                                    <!--<transformer-->
-                                    <!--implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">-->
-                                    <!--<mainClass>${mainClass}</mainClass>-->
-                                    <!--</transformer>-->
                                     <transformer
                                             implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
                                 </transformers>

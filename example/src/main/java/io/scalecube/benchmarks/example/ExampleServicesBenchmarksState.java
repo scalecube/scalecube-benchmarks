@@ -10,9 +10,9 @@ import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 
-public class ServicesBenchmarksState extends BenchmarksState<ServicesBenchmarksState> {
+public class ExampleServicesBenchmarksState extends BenchmarksState<ExampleServicesBenchmarksState> {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(ServicesBenchmarksState.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(ExampleServicesBenchmarksState.class);
 
   private static final Duration SHUTDOWN_TIMEOUT = Duration.ofSeconds(6);
 
@@ -21,7 +21,7 @@ public class ServicesBenchmarksState extends BenchmarksState<ServicesBenchmarksS
   private Microservices seed;
   private Microservices node;
 
-  public ServicesBenchmarksState(BenchmarksSettings settings, Object... services) {
+  public ExampleServicesBenchmarksState(BenchmarksSettings settings, Object... services) {
     super(settings);
     this.services = services;
   }

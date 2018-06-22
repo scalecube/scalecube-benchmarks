@@ -6,7 +6,7 @@ import io.scalecube.services.annotations.ServiceMethod;
 import reactor.core.publisher.Mono;
 
 @Service
-public interface BenchmarkService {
+public interface ExampleBenchmarkService {
 
   @ServiceMethod
   Mono<String> requestOne(String request);
