@@ -1,10 +1,16 @@
 package io.scalecube.benchmarks.example;
 
-import com.codahale.metrics.Timer;
 import io.scalecube.benchmarks.BenchmarksSettings;
+
+import com.codahale.metrics.Timer;
 
 public class RequestOneBenchmarksRunner {
 
+  /**
+   * Runs benchmark.
+   *
+   * @param args command line args
+   */
   public static void main(String[] args) {
     BenchmarksSettings settings = BenchmarksSettings.from(args).build();
     new ServicesBenchmarksState(settings, new BenchmarkServiceImpl()).runForAsync(state -> {

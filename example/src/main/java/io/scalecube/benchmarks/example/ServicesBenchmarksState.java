@@ -38,9 +38,8 @@ public class ServicesBenchmarksState extends BenchmarksState<ServicesBenchmarksS
         .services(services)
         .startAwait();
 
-    LOGGER.info("Seed address: " + seed.cluster().address() +
-        ", services address: " + node.serviceAddress() +
-        ", seed serviceRegistry: " + seed.serviceRegistry().listServiceReferences());
+    LOGGER.info("Seed address: {}, services address: {}, seed serviceRegistry: {}",
+        seed.cluster().address(), node.serviceAddress(), seed.serviceRegistry().listServiceReferences());
   }
 
   @Override
@@ -49,6 +48,7 @@ public class ServicesBenchmarksState extends BenchmarksState<ServicesBenchmarksS
       try {
         node.shutdown().block(SHUTDOWN_TIMEOUT);
       } catch (Throwable ignore) {
+        // NOP
       }
     }
 
@@ -56,6 +56,7 @@ public class ServicesBenchmarksState extends BenchmarksState<ServicesBenchmarksS
       try {
         seed.shutdown().block(SHUTDOWN_TIMEOUT);
       } catch (Throwable ignore) {
+        // NOP
       }
     }
   }
@@ -64,8 +65,8 @@ public class ServicesBenchmarksState extends BenchmarksState<ServicesBenchmarksS
     return seed;
   }
 
-  public <T> T service(Class<T> c) {
-    return seed.call().create().api(c);
+  public <T> T service(Class<T> serviceClass) {
+    return seed.call().create().api(serviceClass);
   }
 
   public ServiceCall serviceCall() {
