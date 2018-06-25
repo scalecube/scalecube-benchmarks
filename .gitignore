@@ -23,6 +23,7 @@
 # Report directories
 /reports
 */reports
+*.csv
 
 # Mac-specific directory that no other operating system needs.
 .DS_Store

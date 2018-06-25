@@ -1,10 +1,10 @@
-package io.scalecube.benchmarks.example;
+package io.scalecube.benchmarks.examples;
 
 import io.scalecube.benchmarks.BenchmarksSettings;
 
 import com.codahale.metrics.Timer;
 
-public class ExampleRequestOneBenchmarksRunner {
+public class TimerExampleBenchmarksRunner {
 
   /**
    * Runs example benchmark.
@@ -13,14 +13,14 @@ public class ExampleRequestOneBenchmarksRunner {
    */
   public static void main(String[] args) {
     BenchmarksSettings settings = BenchmarksSettings.from(args).build();
-    new ExampleServicesBenchmarksState(settings, new ExampleBenchmarkServiceImpl()).runForAsync(state -> {
+    new ExampleServicesBenchmarksState(settings).runForAsync(state -> {
 
-      ExampleBenchmarkService exampleBenchmarkService = state.service(ExampleBenchmarkService.class);
+      ExampleService service = state.exampleService();
       Timer timer = state.timer("timer");
 
       return i -> {
         Timer.Context timeContext = timer.time();
-        return exampleBenchmarkService.requestOne("hello").doOnTerminate(timeContext::stop);
+        return service.invoke("hello").doOnTerminate(timeContext::stop);
       };
     });
   }
