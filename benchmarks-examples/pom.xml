@@ -15,7 +15,7 @@
     <dependencies>
         <dependency>
             <groupId>io.scalecube</groupId>
-            <artifactId>benchmarks</artifactId>
+            <artifactId>benchmarks-api</artifactId>
             <version>${project.version}</version>
         </dependency>
     </dependencies>
