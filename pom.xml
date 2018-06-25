@@ -54,8 +54,8 @@
     </distributionManagement>
 
     <modules>
-        <module>benchmarks</module>
-        <module>example</module>
+        <module>benchmarks-api</module>
+        <module>benchmarks-examples</module>
     </modules>
 
     <properties>
@@ -64,7 +64,6 @@
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
         <uberjar.name>scalecube-benchmarks</uberjar.name>
-        <scalecube-services-api.version>2.0.26</scalecube-services-api.version>
         <reactor-core.version>3.1.7.RELEASE</reactor-core.version>
         <jmh.version>1.21</jmh.version>
         <metrics.version>3.1.2</metrics.version>
@@ -84,7 +83,7 @@
 
             <dependency>
                 <groupId>io.projectreactor</groupId>
-                <artifactId>reactor-test</artifactId>
+                <artifactId>reactor-core</artifactId>
                 <version>${reactor-core.version}</version>
             </dependency>
             <dependency>
@@ -98,12 +97,15 @@
                 <groupId>org.openjdk.jmh</groupId>
                 <artifactId>jmh-core</artifactId>
                 <version>${jmh.version}</version>
+                <scope>provided</scope>
+                <optional>true</optional>
             </dependency>
             <dependency>
                 <groupId>org.openjdk.jmh</groupId>
                 <artifactId>jmh-generator-annprocess</artifactId>
                 <version>${jmh.version}</version>
                 <scope>provided</scope>
+                <optional>true</optional>
             </dependency>
         </dependencies>
     </dependencyManagement>
@@ -282,7 +284,7 @@
                             </reactorModuleConvergence>
                             <dependencyConvergence/>
                         </rules>
-                        <fail>false</fail>
+                        <fail>true</fail>
                     </configuration>
                 </plugin>
             </plugins>
