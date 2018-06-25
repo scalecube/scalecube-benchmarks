@@ -5,7 +5,6 @@ import com.codahale.metrics.CsvReporter;
 import com.codahale.metrics.Histogram;
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.Timer;
-
 import reactor.core.publisher.Flux;
 import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
@@ -20,7 +19,21 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import java.util.stream.LongStream;
 
-public class BenchmarksState<T extends BenchmarksState<T>> {
+
+/**
+ * 
+ * BenchmarksState is the state of the benchmark. it gives you the analogy of the beginning, and ending of the test. It
+ * can run both sync or async way using the {@link #runForSync(Function)} and {@link #runForAsync(Function)}
+ * respectively.
+ * 
+ * 
+ * @param <SELF> when extending this class, please add your class as the SELF. ie. <code>
+ * public class ExampleBenchmarksState extends BenchmarksState<ExampleBenchmarksState> {
+ * ...
+ * }
+ * </code>
+ */
+public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(BenchmarksState.class);
 
@@ -147,41 +160,49 @@ public class BenchmarksState<T extends BenchmarksState<T>> {
    * NOTICE: It's only for synchronous code.
    * </p>
    *
-   * @param func function
+   * @param func a function that should return the execution to be tested for the given SELF. this execution would run on
+   *        all positive values of Long (i.e. the benchmark itself) the return value is ignored.
    */
-  public final void runForSync(Function<T, Function<Long, Object>> func) {
+  public final void runForSync(Function<SELF, Function<Long, Object>> func) {
+    @SuppressWarnings("unchecked")
+    SELF self = (SELF) this;
     try {
-      start();
       // noinspection unchecked
-      Function<Long, Object> func1 = func.apply((T) this);
+      self.start();
+      Function<Long, Object> unitOfWork = func.apply(self);
       Flux.merge(Flux.fromStream(LongStream.range(0, Long.MAX_VALUE).boxed())
           .publishOn(scheduler())
-          .map(func1))
+          .map(unitOfWork))
           .take(settings.executionTaskTime())
           .blockLast();
     } finally {
-      shutdown();
+      self.shutdown();
     }
   }
 
   /**
-   * Runs given function in the state. It also executes {@link BenchmarksState#start()} before and
+   * Runs given function on this state. It also executes {@link BenchmarksState#start()} before and
    * {@link BenchmarksState#shutdown()} after. NOTICE: It's only for asynchronous code.
    *
-   * @param func function
+   * @param func a function that should return the execution to be tested for the given SELF. this execution would run on
+   *        all positive values of Long (i.e. the benchmark itself) On the return value, as it is a Publisher, The
+   *        benchmark test would {@link Publisher#subscribe(org.reactivestreams.Subscriber) subscribe}, And upon all
+   *        subscriptions - await for termination.
    */
-  public final void runForAsync(Function<T, Function<Long, Publisher<?>>> func) {
+  public final void runForAsync(Function<SELF, Function<Long, Publisher<?>>> func) {
+    // noinspection unchecked
+    @SuppressWarnings("unchecked")
+    SELF self = (SELF) this;
     try {
-      start();
-      // noinspection unchecked
-      Function<Long, Publisher<?>> func1 = func.apply((T) this);
+      self.start();
+      Function<Long, Publisher<?>> publisherToBenchmarkMethod = func.apply(self);
       Flux.merge(Flux.fromStream(LongStream.range(0, Long.MAX_VALUE).boxed())
           .publishOn(scheduler())
-          .map(func1))
+          .map(publisherToBenchmarkMethod))
           .take(settings.executionTaskTime())
           .blockLast();
     } finally {
-      shutdown();
+      self.shutdown();
     }
   }
 
