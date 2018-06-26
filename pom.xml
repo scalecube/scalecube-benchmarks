@@ -267,7 +267,7 @@
                             <reactorModuleConvergence>
                                 <ignoreModuleDependencies>true</ignoreModuleDependencies>
                             </reactorModuleConvergence>
-                            <dependencyConvergence />
+                            <dependencyConvergence/>
                         </rules>
                         <fail>true</fail>
                     </configuration>
