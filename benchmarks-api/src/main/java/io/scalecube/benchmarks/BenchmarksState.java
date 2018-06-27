@@ -53,11 +53,11 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
     this.settings = settings;
   }
 
-  protected void beforeAll() {
+  protected void beforeAll() throws Exception {
     // NOP
   }
 
-  protected void afterAll() {
+  protected void afterAll() throws Exception {
     // NOP
   }
 
@@ -84,7 +84,11 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
 
     scheduler = Schedulers.fromExecutor(Executors.newFixedThreadPool(settings.nThreads()));
 
-    beforeAll();
+    try {
+      beforeAll();
+    } catch (Exception ex) {
+      throw new IllegalStateException("BenchmarksState beforeAll() failed: " + ex, ex);
+    }
 
     consoleReporter.start(settings.reporterPeriod().toMillis(), TimeUnit.MILLISECONDS);
     csvReporter.start(1, TimeUnit.DAYS);
@@ -120,7 +124,11 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
       scheduler.dispose();
     }
 
-    afterAll();
+    try {
+      afterAll();
+    } catch (Exception ex) {
+      throw new IllegalStateException("BenchmarksState afterAll() failed: " + ex, ex);
+    }
   }
 
   public Scheduler scheduler() {
@@ -168,13 +176,28 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
    *        on all positive values of Long (i.e. the benchmark itself) the return value is ignored.
    */
   public final void runForSync(Function<SELF, Function<Long, Object>> func) {
+    runForSync(Long.MAX_VALUE, func);
+  }
+
+  /**
+   * Runs given function in the state. It also executes {@link BenchmarksState#start()} before and
+   * {@link BenchmarksState#shutdown()} after.
+   * <p>
+   * NOTICE: It's only for synchronous code.
+   * </p>
+   *
+   * @param iter iterations number.
+   * @param func a function that should return the execution to be tested for the given SELF. This execution would run
+   *        on all positive values of Long (i.e. the benchmark itself) the return value is ignored.
+   */
+  public final void runForSync(long iter, Function<SELF, Function<Long, Object>> func) {
     @SuppressWarnings("unchecked")
     SELF self = (SELF) this;
     try {
       // noinspection unchecked
       self.start();
       Function<Long, Object> unitOfWork = func.apply(self);
-      Flux.merge(Flux.fromStream(LongStream.range(0, Long.MAX_VALUE).boxed())
+      Flux.merge(Flux.fromStream(LongStream.range(0, iter).boxed())
           .publishOn(scheduler())
           .map(unitOfWork))
           .take(settings.executionTaskTime())
@@ -197,15 +220,32 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
    *        for termination.
    */
   public final void runForAsync(Function<SELF, Function<Long, Publisher<?>>> func) {
+    runForAsync(Long.MAX_VALUE, func);
+  }
+
+  /**
+   * Runs given function on this state. It also executes {@link BenchmarksState#start()} before and
+   * {@link BenchmarksState#shutdown()} after.
+   * <p>
+   * NOTICE: It's only for asynchronous code.
+   * </p>
+   *
+   * @param iter iterations number.
+   * @param func a function that should return the execution to be tested for the given SELF. This execution would run
+   *        on all positive values of Long (i.e. the benchmark itself) On the return value, as it is a Publisher, The
+   *        benchmark test would {@link Publisher#subscribe(Subscriber) subscribe}, And upon all subscriptions - await
+   *        for termination.
+   */
+  public final void runForAsync(long iter, Function<SELF, Function<Long, Publisher<?>>> func) {
     // noinspection unchecked
     @SuppressWarnings("unchecked")
     SELF self = (SELF) this;
     try {
       self.start();
-      Function<Long, Publisher<?>> publisherToBenchmarkMethod = func.apply(self);
-      Flux.merge(Flux.fromStream(LongStream.range(0, Long.MAX_VALUE).boxed())
+      Function<Long, Publisher<?>> unitOfWork = func.apply(self);
+      Flux.merge(Flux.fromStream(LongStream.range(0, iter).boxed())
           .publishOn(scheduler())
-          .map(publisherToBenchmarkMethod))
+          .map(unitOfWork))
           .take(settings.executionTaskTime())
           .blockLast();
     } finally {
