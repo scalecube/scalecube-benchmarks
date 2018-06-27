@@ -4,6 +4,8 @@ import io.scalecube.benchmarks.BenchmarksSettings;
 
 import com.codahale.metrics.Meter;
 
+import java.util.concurrent.TimeUnit;
+
 public class MeterExampleBenchmarksRunner {
 
   /**
@@ -12,7 +14,7 @@ public class MeterExampleBenchmarksRunner {
    * @param args command line args
    */
   public static void main(String[] args) {
-    BenchmarksSettings settings = BenchmarksSettings.from(args).build();
+    BenchmarksSettings settings = BenchmarksSettings.from(args).durationUnit(TimeUnit.NANOSECONDS).build();
     new ExampleServicesBenchmarksState(settings).runForAsync(state -> {
 
       ExampleService service = state.exampleService();
