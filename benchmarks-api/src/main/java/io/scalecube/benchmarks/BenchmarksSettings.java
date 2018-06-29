@@ -20,6 +20,7 @@ public class BenchmarksSettings {
   private static final Duration REPORTER_PERIOD = Duration.ofSeconds(10);
   private static final TimeUnit DURATION_UNIT = TimeUnit.MILLISECONDS;
   private static final TimeUnit RATE_UNIT = TimeUnit.SECONDS;
+  private static final long NUM_OF_ITERATIONS = Long.MAX_VALUE;
 
   private final int nThreads;
   private final Duration executionTaskTime;
@@ -29,6 +30,7 @@ public class BenchmarksSettings {
   private final TimeUnit durationUnit;
   private final TimeUnit rateUnit;
   private final MetricRegistry registry;
+  private final long numOfIterations;
 
   private final Map<String, String> options;
 
@@ -40,6 +42,7 @@ public class BenchmarksSettings {
     this.nThreads = builder.nThreads;
     this.executionTaskTime = builder.executionTaskTime;
     this.reporterPeriod = builder.reporterPeriod;
+    this.numOfIterations = builder.numOfIterations;
 
     this.options = builder.options;
 
@@ -94,11 +97,16 @@ public class BenchmarksSettings {
     return rateUnit;
   }
 
+  public long numOfIterations() {
+    return numOfIterations;
+  }
+
   @Override
   public String toString() {
     final StringBuilder sb = new StringBuilder("BenchmarksSettings{");
     sb.append("nThreads=").append(nThreads);
     sb.append(", executionTaskTime=").append(executionTaskTime);
+    sb.append(", numOfIterations=").append(numOfIterations);
     sb.append(", reporterPeriod=").append(reporterPeriod);
     sb.append(", csvReporterDirectory=").append(csvReporterDirectory);
     sb.append(", taskName='").append(taskName).append('\'');
@@ -113,11 +121,12 @@ public class BenchmarksSettings {
   public static class Builder {
     private final Map<String, String> options = new HashMap<>();
 
-    private Integer nThreads = N_THREADS;
+    private int nThreads = N_THREADS;
     private Duration executionTaskTime = EXECUTION_TASK_TIME;
     private Duration reporterPeriod = REPORTER_PERIOD;
     private TimeUnit durationUnit = DURATION_UNIT;
     private TimeUnit rateUnit = RATE_UNIT;
+    private long numOfIterations = NUM_OF_ITERATIONS;
 
     public Builder from(String[] args) {
       this.parse(args);
@@ -126,7 +135,7 @@ public class BenchmarksSettings {
 
     private Builder() {}
 
-    public Builder nThreads(Integer numThreads) {
+    public Builder nThreads(int numThreads) {
       this.nThreads = numThreads;
       return this;
     }
@@ -156,6 +165,11 @@ public class BenchmarksSettings {
       return this;
     }
 
+    public Builder numOfIterations(long numOfIterations) {
+      this.numOfIterations = numOfIterations;
+      return this;
+    }
+
     public BenchmarksSettings build() {
       return new BenchmarksSettings(this);
     }
@@ -175,6 +189,9 @@ public class BenchmarksSettings {
               break;
             case "reporterPeriodInSec":
               reporterPeriod(Duration.ofSeconds(Long.parseLong(value)));
+              break;
+            case "numOfIterations":
+              numOfIterations(Long.parseLong(value));
               break;
             default:
               addOption(key, value);
