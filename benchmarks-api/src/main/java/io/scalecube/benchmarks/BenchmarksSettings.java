@@ -11,6 +11,7 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
 
 public class BenchmarksSettings {
@@ -56,7 +57,7 @@ public class BenchmarksSettings {
 
     String time = LocalDateTime.ofInstant(Instant.now(), ZoneOffset.UTC)
         .format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"));
-    this.csvReporterDirectory = Paths.get("benchmarks", "results", taskName, time).toFile();
+    this.csvReporterDirectory = Paths.get("benchmarks", "results", taskName + allPropertiesAsString(), time).toFile();
     // noinspection ResultOfMethodCallIgnored
     this.csvReporterDirectory.mkdirs();
   }
@@ -115,6 +116,18 @@ public class BenchmarksSettings {
     sb.append(", registry=").append(registry);
     sb.append(", options=").append(options);
     sb.append('}');
+    return sb.toString();
+  }
+
+  private String allPropertiesAsString() {
+    Map<String, String> allProperties = new TreeMap<>(options);
+    allProperties.put("nThreads", String.valueOf(nThreads));
+    allProperties.put("executionTaskTime", String.valueOf(executionTaskTime));
+    allProperties.put("numOfIterations", String.valueOf(numOfIterations));
+    StringBuilder sb = new StringBuilder();
+    for (Map.Entry<String, String> entry : allProperties.entrySet()) {
+      sb.append("_").append(entry.getKey()).append("=").append(entry.getValue());
+    }
     return sb.toString();
   }
 
