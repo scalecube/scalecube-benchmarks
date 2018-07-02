@@ -182,9 +182,10 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
       // noinspection unchecked
       self.start();
       Function<Long, Object> unitOfWork = func.apply(self);
-      Flux.merge(Flux.fromStream(LongStream.range(0, settings.numOfIterations()).boxed())
-          .publishOn(scheduler())
-          .map(unitOfWork))
+      Flux.merge(
+          Flux.fromStream(LongStream.range(0, settings.numOfIterations()).boxed())
+              .publishOn(scheduler())
+              .map(unitOfWork))
           .take(settings.executionTaskTime())
           .blockLast();
     } finally {
@@ -211,9 +212,10 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
     try {
       self.start();
       Function<Long, Publisher<?>> unitOfWork = func.apply(self);
-      Flux.merge(Flux.fromStream(LongStream.range(0, settings.numOfIterations()).boxed())
-          .publishOn(scheduler())
-          .map(unitOfWork))
+      Flux.merge(
+          Flux.fromStream(LongStream.range(0, settings.numOfIterations()).boxed())
+              .publishOn(scheduler())
+              .map(unitOfWork))
           .take(settings.executionTaskTime())
           .blockLast();
     } finally {
