@@ -53,7 +53,7 @@ public class BenchmarksSettings {
     this.rateUnit = builder.rateUnit;
 
     StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
-    this.taskName = stackTrace[stackTrace.length - 1].getClassName();
+    this.taskName = minifyClassName(stackTrace[stackTrace.length - 1].getClassName());
 
     String time = LocalDateTime.ofInstant(Instant.now(), ZoneOffset.UTC)
         .format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"));
@@ -117,6 +117,10 @@ public class BenchmarksSettings {
     sb.append(", options=").append(options);
     sb.append('}');
     return sb.toString();
+  }
+
+  private String minifyClassName(String className) {
+    return className.replaceAll("\\B\\w+(\\.[a-zA-Z])","$1");
   }
 
   private String allPropertiesAsString() {
