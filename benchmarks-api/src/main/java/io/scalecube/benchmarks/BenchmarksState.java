@@ -215,7 +215,8 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
       Flux.merge(
           Flux.fromStream(LongStream.range(0, settings.numOfIterations()).boxed())
               .publishOn(scheduler())
-              .map(unitOfWork))
+              .map(unitOfWork),
+          Integer.MAX_VALUE, Integer.MAX_VALUE)
           .take(settings.executionTaskTime())
           .blockLast();
     } finally {
