@@ -91,7 +91,7 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
     }
 
     consoleReporter.start(settings.reporterPeriod().toMillis(), TimeUnit.MILLISECONDS);
-    csvReporter.start(1, TimeUnit.DAYS);
+    csvReporter.start(settings.reporterPeriod().toMillis(), TimeUnit.MILLISECONDS);
 
     Runtime.getRuntime().addShutdownHook(new Thread(() -> {
       if (started.get()) {
@@ -181,11 +181,14 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
     try {
       // noinspection unchecked
       self.start();
+
       Function<Long, Object> unitOfWork = func.apply(self);
-      Flux.merge(
-          Flux.fromStream(LongStream.range(0, settings.numOfIterations()).boxed())
-              .publishOn(scheduler())
-              .map(unitOfWork))
+
+      int prefetch = Integer.MAX_VALUE;
+      Flux<Long> fromStream = Flux.fromStream(LongStream.range(0, settings.numOfIterations()).boxed());
+
+      Flux.merge(prefetch, fromStream
+          .publishOn(scheduler(), prefetch).map(unitOfWork))
           .take(settings.executionTaskTime())
           .blockLast();
     } finally {
@@ -211,11 +214,14 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
     SELF self = (SELF) this;
     try {
       self.start();
+
       Function<Long, Publisher<?>> unitOfWork = func.apply(self);
-      Flux.merge(
-          Flux.fromStream(LongStream.range(0, settings.numOfIterations()).boxed())
-              .publishOn(scheduler())
-              .map(unitOfWork))
+
+      int prefetch = Integer.MAX_VALUE;
+      int concurrency = Integer.MAX_VALUE;
+      Flux<Long> fromStream = Flux.fromStream(LongStream.range(0, settings.numOfIterations()).boxed());
+
+      Flux.merge(fromStream.publishOn(scheduler(), prefetch).map(unitOfWork), concurrency, prefetch)
           .take(settings.executionTaskTime())
           .blockLast();
     } finally {
