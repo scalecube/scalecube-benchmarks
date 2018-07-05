@@ -91,7 +91,7 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
     }
 
     consoleReporter.start(settings.reporterPeriod().toMillis(), TimeUnit.MILLISECONDS);
-    csvReporter.start(1, TimeUnit.DAYS);
+    csvReporter.start(settings.reporterPeriod().toMillis(), TimeUnit.MILLISECONDS);
 
     Runtime.getRuntime().addShutdownHook(new Thread(() -> {
       if (started.get()) {
