@@ -18,7 +18,7 @@ public class BenchmarksSettings {
 
   private static final int N_THREADS = Runtime.getRuntime().availableProcessors();
   private static final Duration EXECUTION_TASK_TIME = Duration.ofSeconds(60);
-  private static final Duration REPORTER_PERIOD = Duration.ofSeconds(10);
+  private static final Duration REPORTER_PERIOD = Duration.ofSeconds(3);
   private static final TimeUnit DURATION_UNIT = TimeUnit.MILLISECONDS;
   private static final TimeUnit RATE_UNIT = TimeUnit.SECONDS;
   private static final long NUM_OF_ITERATIONS = Long.MAX_VALUE;

@@ -4,11 +4,11 @@ import io.scalecube.benchmarks.BenchmarksSettings;
 import io.scalecube.benchmarks.BenchmarksState;
 
 
-public class ExampleServicesBenchmarksState extends BenchmarksState<ExampleServicesBenchmarksState> {
+public class ExampleServiceBenchmarksState extends BenchmarksState<ExampleServiceBenchmarksState> {
 
   private ExampleService exampleService;
 
-  public ExampleServicesBenchmarksState(BenchmarksSettings settings) {
+  public ExampleServiceBenchmarksState(BenchmarksSettings settings) {
     super(settings);
   }
 
