@@ -19,7 +19,7 @@ public class RampUpExampleBenchmarksRunner {
 
     AtomicInteger generator = new AtomicInteger();
 
-    new RampUpExampleServiceBenchmarksState(settings).run($ -> generator.incrementAndGet(),
+    new ExampleServiceBenchmarksState(settings).run($ -> generator.incrementAndGet(),
         state -> {
 
           ExampleService service = state.exampleService();
@@ -28,6 +28,7 @@ public class RampUpExampleBenchmarksRunner {
           return (i, counter) -> {
             Timer.Context timeContext = timer.time();
             return service.invoke("hello" + counter)
+                .doOnEach(System.err::println)
                 .doOnTerminate(timeContext::stop);
           };
         });

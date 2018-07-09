@@ -16,9 +16,11 @@ import org.reactivestreams.Subscriber;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Duration;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.LongStream;
 
@@ -232,10 +234,34 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
     }
   }
 
-  // public Mono<Void> runLambda(Function<Integer, Integer> lambda) {
-  //
-  //
-  //
-  // return;
-  // }
+  public final <T> void run(Function<SELF, T> supplier, Function<SELF, BiFunction<Long, T, Publisher<?>>> func) {
+    // noinspection unchecked
+    @SuppressWarnings("unchecked")
+    SELF self = (SELF) this;
+    try {
+      self.start();
+
+      BiFunction<Long, T, Publisher<?>> unitOfWork = func.apply(self);
+
+      long unitOfWorkNumber = settings.numOfIterations();
+      Duration unitOfWorkDuration = settings.executionTaskTime();
+
+      Duration rampUpDuration = settings.rampUpDuration();
+      long rampUpCount = settings.rampUpNumOfSupplier();
+      Duration durationPerRampUp = Duration.ofMillis(rampUpDuration.toMillis() / rampUpCount);
+
+      int prefetch = Integer.MAX_VALUE;
+      int concurrency = Integer.MAX_VALUE;
+
+      Flux.interval(durationPerRampUp)
+          .take(rampUpCount)
+          .map(i -> supplier.apply(self))
+          .flatMap(supplier0 -> Flux.merge(Flux.fromStream(LongStream.range(0, unitOfWorkNumber).boxed())
+              .publishOn(scheduler, prefetch).map(i -> unitOfWork.apply(i, supplier0)), concurrency, prefetch)
+              .take(unitOfWorkDuration))
+          .blockLast();
+    } finally {
+      self.shutdown();
+    }
+  }
 }

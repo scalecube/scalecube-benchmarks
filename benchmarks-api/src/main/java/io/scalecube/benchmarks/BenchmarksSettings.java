@@ -22,6 +22,8 @@ public class BenchmarksSettings {
   private static final TimeUnit DURATION_UNIT = TimeUnit.MILLISECONDS;
   private static final TimeUnit RATE_UNIT = TimeUnit.SECONDS;
   private static final long NUM_OF_ITERATIONS = Long.MAX_VALUE;
+  private static final Duration RAMP_UP_DURATION = Duration.ofSeconds(10);
+  private static final long RAMP_UP_NUM_OF_SUPPLIER = 10;
 
   private final int nThreads;
   private final Duration executionTaskTime;
@@ -32,6 +34,8 @@ public class BenchmarksSettings {
   private final TimeUnit rateUnit;
   private final MetricRegistry registry;
   private final long numOfIterations;
+  private final Duration rampUpDuration;
+  private final long rampUpNumOfSupplier;
 
   private final Map<String, String> options;
 
@@ -44,6 +48,9 @@ public class BenchmarksSettings {
     this.executionTaskTime = builder.executionTaskTime;
     this.reporterPeriod = builder.reporterPeriod;
     this.numOfIterations = builder.numOfIterations;
+
+    this.rampUpDuration = builder.rampUpDuration;
+    this.rampUpNumOfSupplier = builder.rampUpNumOfSupplier;
 
     this.options = builder.options;
 
@@ -102,6 +109,14 @@ public class BenchmarksSettings {
     return numOfIterations;
   }
 
+  public Duration rampUpDuration() {
+    return rampUpDuration;
+  }
+
+  public long rampUpNumOfSupplier() {
+    return rampUpNumOfSupplier;
+  }
+
   @Override
   public String toString() {
     final StringBuilder sb = new StringBuilder("BenchmarksSettings{");
@@ -113,6 +128,8 @@ public class BenchmarksSettings {
     sb.append(", taskName='").append(taskName).append('\'');
     sb.append(", durationUnit=").append(durationUnit);
     sb.append(", rateUnit=").append(rateUnit);
+    sb.append(", rampUpDuration=").append(rampUpDuration);
+    sb.append(", rampUpNumOfSupplier=").append(rampUpNumOfSupplier);
     sb.append(", registry=").append(registry);
     sb.append(", options=").append(options);
     sb.append('}');
@@ -144,6 +161,8 @@ public class BenchmarksSettings {
     private TimeUnit durationUnit = DURATION_UNIT;
     private TimeUnit rateUnit = RATE_UNIT;
     private long numOfIterations = NUM_OF_ITERATIONS;
+    private Duration rampUpDuration = RAMP_UP_DURATION;
+    private long rampUpNumOfSupplier = RAMP_UP_NUM_OF_SUPPLIER;
 
     public Builder from(String[] args) {
       this.parse(args);
@@ -187,6 +206,16 @@ public class BenchmarksSettings {
       return this;
     }
 
+    public Builder rampUpDuration(Duration rampUpDuration) {
+      this.rampUpDuration = rampUpDuration;
+      return this;
+    }
+
+    public Builder rampUpNumOfSupplier(long rampUpNumOfSupplier) {
+      this.rampUpNumOfSupplier = rampUpNumOfSupplier;
+      return this;
+    }
+
     public BenchmarksSettings build() {
       return new BenchmarksSettings(this);
     }
@@ -209,6 +238,12 @@ public class BenchmarksSettings {
               break;
             case "numOfIterations":
               numOfIterations(Long.parseLong(value));
+              break;
+            case "rampUpDurationInMillis":
+              rampUpDuration(Duration.ofMillis(Long.parseLong(value)));
+              break;
+            case "rampUpNumOfSupplier":
+              rampUpNumOfSupplier(Long.parseLong(value));
               break;
             default:
               addOption(key, value);
