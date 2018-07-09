@@ -5,6 +5,7 @@ import com.codahale.metrics.CsvReporter;
 import com.codahale.metrics.Histogram;
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.Timer;
+import com.codahale.metrics.jvm.MemoryUsageGaugeSet;
 
 import reactor.core.publisher.Flux;
 import reactor.core.scheduler.Scheduler;
@@ -233,6 +234,21 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
     }
   }
 
+  /**
+   * Runs given function on this state. It also executes {@link BenchmarksState#start()} before and
+   * {@link BenchmarksState#shutdown()} after.
+   * <p>
+   * NOTICE: It's only for asynchronous code.
+   * </p>
+   *
+   * @param supplier a function that should return some T type which one will be passed into next to the argument. Also,
+   *        this function will be invoked with some ramp-up strategy, and when it will be invoked it will start
+   *        executing the unitOfWork, which one specified as the second argument of this method.
+   * @param func a function that should return the execution to be tested for the given SELF. This execution would run
+   *        on all positive values of Long (i.e. the benchmark itself) On the return value, as it is a Publisher, The
+   *        benchmark test would {@link Publisher#subscribe(Subscriber) subscribe}, And upon all subscriptions - await
+   *        for termination.
+   */
   public final <T> void run(Function<SELF, T> supplier, Function<SELF, BiFunction<Long, T, Publisher<?>>> func) {
     // noinspection unchecked
     @SuppressWarnings("unchecked")
@@ -247,10 +263,7 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
 
       Duration rampUpDuration = settings.rampUpDuration();
       long rampUpCount = settings.rampUpNumOfSupplier();
-      Duration durationPerRampUp = Duration.ofMillis(rampUpDuration.toMillis() / rampUpCount);
-
-      System.err.println(settings);
-      System.err.println(durationPerRampUp);
+      Duration durationPerRampUp = Duration.ofNanos(rampUpDuration.toNanos() / rampUpCount);
 
       int prefetch = Integer.MAX_VALUE;
       int concurrency = Integer.MAX_VALUE;
@@ -258,12 +271,11 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
       Flux.merge(Flux.interval(durationPerRampUp)
           .take(rampUpCount)
           .map(i -> supplier.apply(self))
-          .flatMap(supplier0 -> {
-            return Flux.fromStream(LongStream.range(0, unitOfWorkNumber).boxed())
-                .publishOn(scheduler, prefetch)
-                .map(i -> unitOfWork.apply(i, supplier0))
-                .take(unitOfWorkDuration);
-          }, concurrency), concurrency, prefetch)
+          .flatMap(supplier0 -> Flux.fromStream(LongStream.range(0, unitOfWorkNumber).boxed())
+              .publishOn(scheduler, prefetch)
+              .map(i -> unitOfWork.apply(i, supplier0))
+              .take(unitOfWorkDuration), concurrency),
+          concurrency, prefetch)
           .blockLast();
     } finally {
       self.shutdown();
