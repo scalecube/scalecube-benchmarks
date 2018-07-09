@@ -19,7 +19,7 @@ public class RampUpExampleBenchmarksRunner {
     BenchmarksSettings settings = BenchmarksSettings.from(args)
         .numOfIterations(10000000)
         .executionTaskTime(Duration.ofSeconds(10))
-        .rampUpDuration(Duration.ofSeconds(10))
+        .rampUpDuration(Duration.ofSeconds(1))
         .rampUpNumOfSupplier(100)
         .durationUnit(TimeUnit.NANOSECONDS)
         .build();
@@ -32,7 +32,7 @@ public class RampUpExampleBenchmarksRunner {
           ExampleService service = state.exampleService();
           Timer timer = state.timer("timer");
 
-          return (i, counter) -> {
+          return (ignored, counter) -> {
             Timer.Context timeContext = timer.time();
             return service.invoke("hello" + counter)
                 .doOnTerminate(timeContext::stop);
