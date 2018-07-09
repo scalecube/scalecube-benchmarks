@@ -4,6 +4,7 @@ import io.scalecube.benchmarks.BenchmarksSettings;
 
 import com.codahale.metrics.Timer;
 
+import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -15,7 +16,10 @@ public class RampUpExampleBenchmarksRunner {
    * @param args command line args
    */
   public static void main(String[] args) {
-    BenchmarksSettings settings = BenchmarksSettings.from(args).durationUnit(TimeUnit.NANOSECONDS).build();
+    BenchmarksSettings settings = BenchmarksSettings.from(args)
+        .executionTaskTime(Duration.ofSeconds(10))
+        .durationUnit(TimeUnit.NANOSECONDS)
+        .build();
 
     AtomicInteger generator = new AtomicInteger();
 

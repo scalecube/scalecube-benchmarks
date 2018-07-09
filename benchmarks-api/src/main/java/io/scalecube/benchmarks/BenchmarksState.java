@@ -257,7 +257,9 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
           .take(rampUpCount)
           .map(i -> supplier.apply(self))
           .flatMap(supplier0 -> Flux.merge(Flux.fromStream(LongStream.range(0, unitOfWorkNumber).boxed())
-              .publishOn(scheduler, prefetch).map(i -> unitOfWork.apply(i, supplier0)), concurrency, prefetch)
+              // .publishOn(scheduler, prefetch)
+              .publishOn(Schedulers.fromExecutorService(Executors.newFixedThreadPool((int) rampUpCount)), prefetch)
+              .map(i -> unitOfWork.apply(i, supplier0)), concurrency, prefetch)
               .take(unitOfWorkDuration))
           .blockLast();
     } finally {
