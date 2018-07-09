@@ -44,8 +44,8 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
 
   protected final BenchmarksSettings settings;
 
+  protected Scheduler scheduler;
   private ConsoleReporter consoleReporter;
-  private Scheduler scheduler;
   private CsvReporter csvReporter;
 
   private final AtomicBoolean started = new AtomicBoolean();
@@ -232,4 +232,10 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
     }
   }
 
+  // public Mono<Void> runLambda(Function<Integer, Integer> lambda) {
+  //
+  //
+  //
+  // return;
+  // }
 }
