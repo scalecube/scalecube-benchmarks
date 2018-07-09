@@ -250,17 +250,24 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
       long rampUpCount = settings.rampUpNumOfSupplier();
       Duration durationPerRampUp = Duration.ofMillis(rampUpDuration.toMillis() / rampUpCount);
 
+      System.err.println(settings);
+      System.err.println(durationPerRampUp);
+
       int prefetch = Integer.MAX_VALUE;
       int concurrency = Integer.MAX_VALUE;
 
       Flux.interval(durationPerRampUp)
           .take(rampUpCount)
           .map(i -> supplier.apply(self))
-          .flatMap(supplier0 -> Flux.merge(Flux.fromStream(LongStream.range(0, unitOfWorkNumber).boxed())
-              // .publishOn(scheduler, prefetch)
-              .publishOn(Schedulers.fromExecutorService(Executors.newFixedThreadPool((int) rampUpCount)), prefetch)
-              .map(i -> unitOfWork.apply(i, supplier0)), concurrency, prefetch)
-              .take(unitOfWorkDuration))
+          // .publishOn(Schedulers.elastic())
+          .flatMap(supplier0 -> {
+            System.err.println(supplier0 + " : " + unitOfWorkNumber);
+            return Flux.merge(Flux.fromStream(LongStream.range(0, unitOfWorkNumber).boxed())
+                .publishOn(scheduler, prefetch)
+                // .publishOn(Schedulers.fromExecutorService(Executors.newFixedThreadPool((int) rampUpCount)), prefetch)
+                .map(i -> unitOfWork.apply(i, supplier0)), concurrency, prefetch)
+                .take(unitOfWorkDuration);
+          })
           .blockLast();
     } finally {
       self.shutdown();
