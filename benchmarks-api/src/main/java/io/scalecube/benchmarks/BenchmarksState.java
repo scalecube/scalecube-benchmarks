@@ -5,7 +5,6 @@ import com.codahale.metrics.CsvReporter;
 import com.codahale.metrics.Histogram;
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.Timer;
-import com.codahale.metrics.jvm.MemoryUsageGaugeSet;
 
 import reactor.core.publisher.Flux;
 import reactor.core.scheduler.Scheduler;
@@ -256,18 +255,15 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
       int prefetch = Integer.MAX_VALUE;
       int concurrency = Integer.MAX_VALUE;
 
-      Flux.interval(durationPerRampUp)
+      Flux.merge(Flux.interval(durationPerRampUp)
           .take(rampUpCount)
           .map(i -> supplier.apply(self))
-          // .publishOn(Schedulers.elastic())
           .flatMap(supplier0 -> {
-            System.err.println(supplier0 + " : " + unitOfWorkNumber);
-            return Flux.merge(Flux.fromStream(LongStream.range(0, unitOfWorkNumber).boxed())
+            return Flux.fromStream(LongStream.range(0, unitOfWorkNumber).boxed())
                 .publishOn(scheduler, prefetch)
-                // .publishOn(Schedulers.fromExecutorService(Executors.newFixedThreadPool((int) rampUpCount)), prefetch)
-                .map(i -> unitOfWork.apply(i, supplier0)), concurrency, prefetch)
+                .map(i -> unitOfWork.apply(i, supplier0))
                 .take(unitOfWorkDuration);
-          })
+          }, concurrency), concurrency, prefetch)
           .blockLast();
     } finally {
       self.shutdown();
