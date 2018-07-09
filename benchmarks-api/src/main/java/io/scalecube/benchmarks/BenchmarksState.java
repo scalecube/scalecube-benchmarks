@@ -5,6 +5,7 @@ import com.codahale.metrics.CsvReporter;
 import com.codahale.metrics.Histogram;
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.Timer;
+import com.codahale.metrics.jvm.MemoryUsageGaugeSet;
 
 import reactor.core.publisher.Flux;
 import reactor.core.scheduler.Scheduler;
@@ -70,6 +71,8 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
     }
 
     LOGGER.info("Benchmarks settings: " + settings);
+
+    settings.registry().register(settings.taskName() + "-memory", new MemoryUsageGaugeSet());
 
     consoleReporter = ConsoleReporter.forRegistry(settings.registry())
         .outputTo(System.out)
