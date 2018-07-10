@@ -246,9 +246,10 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
    *        on all positive values of Long (i.e. the benchmark itself) On the return value, as it is a Publisher, The
    *        benchmark test would {@link Publisher#subscribe(Subscriber) subscribe}, And upon all subscriptions - await
    *        for termination.
+   * @param cleanUp a function that should clean up some T's resources.
    */
   public final <T> void runForAsync(Function<SELF, Mono<T>> supplier,
-      Function<SELF, BiFunction<Long, T, Publisher<?>>> func) {
+      Function<SELF, BiFunction<Long, T, Publisher<?>>> func, Function<T, Mono<Void>> cleanUp) {
     // noinspection unchecked
     @SuppressWarnings("unchecked")
     SELF self = (SELF) this;
@@ -260,13 +261,17 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
       long unitOfWorkNumber = settings.numOfIterations();
       Duration unitOfWorkDuration = settings.executionTaskTime();
 
-      Flux.merge(Flux.interval(settings.rampUpDurationPerSupplier())
+      Flux.<Void>merge(Flux.interval(settings.rampUpDurationPerSupplier())
           .take(settings.rampUpAllDuration())
           .flatMap(i -> supplier.apply(self))
-          .flatMap(supplier0 -> Flux.fromStream(LongStream.range(0, unitOfWorkNumber).boxed())
-              .publishOn(scheduler)
-              .map(i -> unitOfWork.apply(i, supplier0))
-              .take(unitOfWorkDuration)))
+          .flatMap(supplier0 -> {
+            return Flux.fromStream(LongStream.range(0, unitOfWorkNumber).boxed())
+                .publishOn(scheduler)
+                .map(i -> unitOfWork.apply(i, supplier0))
+                .take(unitOfWorkDuration)
+                .then(cleanUp.apply(supplier0))
+                .cast(Mono.class);
+          }))
           .blockLast();
     } finally {
       self.shutdown();

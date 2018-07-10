@@ -26,18 +26,35 @@ public class RampUpExampleBenchmarksRunner {
         .durationUnit(TimeUnit.NANOSECONDS)
         .build();
 
-    AtomicInteger generator = new AtomicInteger();
-
-    new ExampleServiceBenchmarksState(settings).runForAsync($ -> Mono.just(generator.incrementAndGet()),
+    new ExampleServiceBenchmarksState(settings).runForAsync(state -> Mono.just(new ServiceCall()),
         state -> {
           ExampleService service = state.exampleService();
           Timer timer = state.timer("timer");
 
-          return (ignored, counter) -> {
+          return (iteration, serviceCall) -> {
             Timer.Context timeContext = timer.time();
-            return service.invoke("hello" + counter)
+            return serviceCall.call(service, "hello")
                 .doOnTerminate(timeContext::stop);
           };
-        });
+        }, ServiceCall::close);
+  }
+
+  private static class ServiceCall {
+
+    private final static AtomicInteger COUNTER = new AtomicInteger();
+
+    private final int id = COUNTER.incrementAndGet();
+
+    public Mono<String> call(ExampleService service, String request) {
+      return Mono.defer(() -> service.invoke("#" + id + "--> " + request));
+    }
+
+    public Mono<Void> close() {
+      return Mono.defer(() -> {
+        System.err.println("close");
+        COUNTER.set(0);
+        return Mono.empty();
+      });
+    }
   }
 }
