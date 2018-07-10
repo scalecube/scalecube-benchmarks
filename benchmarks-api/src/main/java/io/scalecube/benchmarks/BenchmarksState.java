@@ -259,21 +259,13 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
       long unitOfWorkNumber = settings.numOfIterations();
       Duration unitOfWorkDuration = settings.executionTaskTime();
 
-      Duration rampUpDuration = settings.rampUpDuration();
-      long rampUpCount = settings.rampUpNumOfSupplier();
-      Duration durationPerRampUp = Duration.ofNanos(rampUpDuration.toNanos() / rampUpCount);
-
-      int prefetch = Integer.MAX_VALUE;
-      int concurrency = Integer.MAX_VALUE;
-
-      Flux.merge(Flux.interval(durationPerRampUp)
-          .take(rampUpCount)
+      Flux.merge(Flux.interval(settings.rampUpDurationPerSupplier())
+          .take(settings.rampUpAllDuration())
           .map(i -> supplier.apply(self))
           .flatMap(supplier0 -> Flux.fromStream(LongStream.range(0, unitOfWorkNumber).boxed())
-              .publishOn(scheduler, prefetch)
+              .publishOn(scheduler)
               .map(i -> unitOfWork.apply(i, supplier0))
-              .take(unitOfWorkDuration), concurrency),
-          concurrency, prefetch)
+              .take(unitOfWorkDuration)))
           .blockLast();
     } finally {
       self.shutdown();

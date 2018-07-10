@@ -22,8 +22,8 @@ public class BenchmarksSettings {
   private static final TimeUnit DURATION_UNIT = TimeUnit.MILLISECONDS;
   private static final TimeUnit RATE_UNIT = TimeUnit.SECONDS;
   private static final long NUM_OF_ITERATIONS = Long.MAX_VALUE;
-  private static final Duration RAMP_UP_DURATION = Duration.ofSeconds(10);
-  private static final long RAMP_UP_NUM_OF_SUPPLIER = 10;
+  private static final Duration RAMP_UP_ALL_DURATION = Duration.ofSeconds(10);
+  private static final Duration RAMP_UP_DURATION_PER_SUPPLIER = Duration.ofSeconds(1);
 
   private final int nThreads;
   private final Duration executionTaskTime;
@@ -34,8 +34,8 @@ public class BenchmarksSettings {
   private final TimeUnit rateUnit;
   private final MetricRegistry registry;
   private final long numOfIterations;
-  private final Duration rampUpDuration;
-  private final long rampUpNumOfSupplier;
+  private final Duration rampUpAllDuration;
+  private final Duration rampUpDurationPerSupplier;
 
   private final Map<String, String> options;
 
@@ -49,8 +49,8 @@ public class BenchmarksSettings {
     this.reporterPeriod = builder.reporterPeriod;
     this.numOfIterations = builder.numOfIterations;
 
-    this.rampUpDuration = builder.rampUpDuration;
-    this.rampUpNumOfSupplier = builder.rampUpNumOfSupplier;
+    this.rampUpAllDuration = builder.rampUpAllDuration;
+    this.rampUpDurationPerSupplier = builder.rampUpDurationPerSupplier;
 
     this.options = builder.options;
 
@@ -109,12 +109,12 @@ public class BenchmarksSettings {
     return numOfIterations;
   }
 
-  public Duration rampUpDuration() {
-    return rampUpDuration;
+  public Duration rampUpAllDuration() {
+    return rampUpAllDuration;
   }
 
-  public long rampUpNumOfSupplier() {
-    return rampUpNumOfSupplier;
+  public Duration rampUpDurationPerSupplier() {
+    return rampUpDurationPerSupplier;
   }
 
   @Override
@@ -128,8 +128,8 @@ public class BenchmarksSettings {
     sb.append(", taskName='").append(taskName).append('\'');
     sb.append(", durationUnit=").append(durationUnit);
     sb.append(", rateUnit=").append(rateUnit);
-    sb.append(", rampUpDuration=").append(rampUpDuration);
-    sb.append(", rampUpNumOfSupplier=").append(rampUpNumOfSupplier);
+    sb.append(", rampUpAllDuration=").append(rampUpAllDuration);
+    sb.append(", rampUpDurationPerSupplier=").append(rampUpDurationPerSupplier);
     sb.append(", registry=").append(registry);
     sb.append(", options=").append(options);
     sb.append('}');
@@ -145,6 +145,8 @@ public class BenchmarksSettings {
     allProperties.put("nThreads", String.valueOf(nThreads));
     allProperties.put("executionTaskTime", String.valueOf(executionTaskTime));
     allProperties.put("numOfIterations", String.valueOf(numOfIterations));
+    allProperties.put("rampUpAllDuration", String.valueOf(rampUpAllDuration));
+    allProperties.put("rampUpDurationPerSupplier", String.valueOf(rampUpDurationPerSupplier));
     StringBuilder sb = new StringBuilder();
     for (Map.Entry<String, String> entry : allProperties.entrySet()) {
       sb.append("_").append(entry.getKey()).append("=").append(entry.getValue());
@@ -161,8 +163,8 @@ public class BenchmarksSettings {
     private TimeUnit durationUnit = DURATION_UNIT;
     private TimeUnit rateUnit = RATE_UNIT;
     private long numOfIterations = NUM_OF_ITERATIONS;
-    private Duration rampUpDuration = RAMP_UP_DURATION;
-    private long rampUpNumOfSupplier = RAMP_UP_NUM_OF_SUPPLIER;
+    private Duration rampUpAllDuration = RAMP_UP_ALL_DURATION;
+    private Duration rampUpDurationPerSupplier = RAMP_UP_DURATION_PER_SUPPLIER;
 
     public Builder from(String[] args) {
       this.parse(args);
@@ -206,13 +208,13 @@ public class BenchmarksSettings {
       return this;
     }
 
-    public Builder rampUpDuration(Duration rampUpDuration) {
-      this.rampUpDuration = rampUpDuration;
+    public Builder rampUpAllDuration(Duration rampUpAllDuration) {
+      this.rampUpAllDuration = rampUpAllDuration;
       return this;
     }
 
-    public Builder rampUpNumOfSupplier(long rampUpNumOfSupplier) {
-      this.rampUpNumOfSupplier = rampUpNumOfSupplier;
+    public Builder rampUpDurationPerSupplier(Duration rampUpDurationPerSupplier) {
+      this.rampUpDurationPerSupplier = rampUpDurationPerSupplier;
       return this;
     }
 
@@ -239,11 +241,11 @@ public class BenchmarksSettings {
             case "numOfIterations":
               numOfIterations(Long.parseLong(value));
               break;
-            case "rampUpDurationInMillis":
-              rampUpDuration(Duration.ofMillis(Long.parseLong(value)));
+            case "rampUpAllDurationInMillis":
+              rampUpAllDuration(Duration.ofMillis(Long.parseLong(value)));
               break;
-            case "rampUpNumOfSupplier":
-              rampUpNumOfSupplier(Long.parseLong(value));
+            case "rampUpDurationPerSupplierInMillis":
+              rampUpDurationPerSupplier(Duration.ofMillis(Long.parseLong(value)));
               break;
             default:
               addOption(key, value);

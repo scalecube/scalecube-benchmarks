@@ -18,9 +18,9 @@ public class RampUpExampleBenchmarksRunner {
   public static void main(String[] args) {
     BenchmarksSettings settings = BenchmarksSettings.from(args)
         .numOfIterations(10000000)
-        .executionTaskTime(Duration.ofSeconds(10))
-        .rampUpDuration(Duration.ofSeconds(1))
-        .rampUpNumOfSupplier(100)
+        .executionTaskTime(Duration.ofSeconds(5))
+        .rampUpAllDuration(Duration.ofSeconds(10))
+        .rampUpDurationPerSupplier(Duration.ofSeconds(1))
         .durationUnit(TimeUnit.NANOSECONDS)
         .build();
 
