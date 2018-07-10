@@ -187,11 +187,10 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
 
       Function<Long, Object> unitOfWork = func.apply(self);
 
-      int prefetch = Integer.MAX_VALUE;
       Flux<Long> fromStream = Flux.fromStream(LongStream.range(0, settings.numOfIterations()).boxed());
 
-      Flux.merge(prefetch, fromStream
-          .publishOn(scheduler(), prefetch).map(unitOfWork))
+      Flux.merge(fromStream
+          .publishOn(scheduler()).map(unitOfWork))
           .take(settings.executionTaskTime())
           .blockLast();
     } finally {
@@ -220,11 +219,9 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
 
       Function<Long, Publisher<?>> unitOfWork = func.apply(self);
 
-      int prefetch = Integer.MAX_VALUE;
-      int concurrency = Integer.MAX_VALUE;
       Flux<Long> fromStream = Flux.fromStream(LongStream.range(0, settings.numOfIterations()).boxed());
 
-      Flux.merge(fromStream.publishOn(scheduler(), prefetch).map(unitOfWork), concurrency, prefetch)
+      Flux.merge(fromStream.publishOn(scheduler()).map(unitOfWork))
           .take(settings.executionTaskTime())
           .blockLast();
     } finally {
