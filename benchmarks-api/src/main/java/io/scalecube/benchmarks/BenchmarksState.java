@@ -8,6 +8,7 @@ import com.codahale.metrics.Timer;
 import com.codahale.metrics.jvm.MemoryUsageGaugeSet;
 
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
 
@@ -246,7 +247,7 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
    *        benchmark test would {@link Publisher#subscribe(Subscriber) subscribe}, And upon all subscriptions - await
    *        for termination.
    */
-  public final <T> void runForAsync(Function<SELF, T> supplier,
+  public final <T> void runForAsync(Function<SELF, Mono<T>> supplier,
       Function<SELF, BiFunction<Long, T, Publisher<?>>> func) {
     // noinspection unchecked
     @SuppressWarnings("unchecked")
@@ -261,7 +262,7 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
 
       Flux.merge(Flux.interval(settings.rampUpDurationPerSupplier())
           .take(settings.rampUpAllDuration())
-          .map(i -> supplier.apply(self))
+          .flatMap(i -> supplier.apply(self))
           .flatMap(supplier0 -> Flux.fromStream(LongStream.range(0, unitOfWorkNumber).boxed())
               .publishOn(scheduler)
               .map(i -> unitOfWork.apply(i, supplier0))

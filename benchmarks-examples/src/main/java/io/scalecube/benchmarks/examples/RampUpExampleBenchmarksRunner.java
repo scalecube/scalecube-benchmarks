@@ -4,6 +4,8 @@ import io.scalecube.benchmarks.BenchmarksSettings;
 
 import com.codahale.metrics.Timer;
 
+import reactor.core.publisher.Mono;
+
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -26,7 +28,7 @@ public class RampUpExampleBenchmarksRunner {
 
     AtomicInteger generator = new AtomicInteger();
 
-    new ExampleServiceBenchmarksState(settings).runForAsync($ -> generator.incrementAndGet(),
+    new ExampleServiceBenchmarksState(settings).runForAsync($ -> Mono.just(generator.incrementAndGet()),
         state -> {
           ExampleService service = state.exampleService();
           Timer timer = state.timer("timer");
