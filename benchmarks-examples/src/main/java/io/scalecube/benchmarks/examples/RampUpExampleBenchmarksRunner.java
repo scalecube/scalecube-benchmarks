@@ -19,39 +19,43 @@ public class RampUpExampleBenchmarksRunner {
    */
   public static void main(String[] args) {
     BenchmarksSettings settings = BenchmarksSettings.from(args)
-        .numOfIterations(10000000)
-        .executionTaskTime(Duration.ofSeconds(5))
         .rampUpAllDuration(Duration.ofSeconds(10))
         .rampUpDurationPerSupplier(Duration.ofSeconds(1))
+        .executionTaskTime(Duration.ofSeconds(5))
         .durationUnit(TimeUnit.NANOSECONDS)
         .build();
 
-    new ExampleServiceBenchmarksState(settings).runForAsync(state -> Mono.just(new ServiceCall()),
+    new ExampleServiceBenchmarksState(settings).runForAsync(
+        state -> Mono.defer(() -> Mono.just(new ServiceCall(state.exampleService()))),
         state -> {
-          ExampleService service = state.exampleService();
           Timer timer = state.timer("timer");
 
           return (iteration, serviceCall) -> {
             Timer.Context timeContext = timer.time();
-            return serviceCall.call(service, "hello")
+            return serviceCall.call("hello")
                 .doOnTerminate(timeContext::stop);
           };
-        }, ServiceCall::close);
+        },
+        ServiceCall::close);
   }
 
   private static class ServiceCall {
 
-    private final static AtomicInteger COUNTER = new AtomicInteger();
+    private static final AtomicInteger COUNTER = new AtomicInteger();
 
     private final int id = COUNTER.incrementAndGet();
+    private final ExampleService service;
 
-    public Mono<String> call(ExampleService service, String request) {
+    public ServiceCall(ExampleService service) {
+      this.service = service;
+    }
+
+    public Mono<String> call(String request) {
       return Mono.defer(() -> service.invoke("#" + id + "--> " + request));
     }
 
     public Mono<Void> close() {
       return Mono.defer(() -> {
-        System.err.println("close");
         COUNTER.set(0);
         return Mono.empty();
       });

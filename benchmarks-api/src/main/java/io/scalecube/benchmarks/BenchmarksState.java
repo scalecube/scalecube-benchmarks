@@ -261,17 +261,14 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
       long unitOfWorkNumber = settings.numOfIterations();
       Duration unitOfWorkDuration = settings.executionTaskTime();
 
-      Flux.<Void>merge(Flux.interval(settings.rampUpDurationPerSupplier())
+      Flux.merge(Flux.interval(settings.rampUpDurationPerSupplier())
           .take(settings.rampUpAllDuration())
           .flatMap(i -> supplier.apply(self))
-          .flatMap(supplier0 -> {
-            return Flux.fromStream(LongStream.range(0, unitOfWorkNumber).boxed())
-                .publishOn(scheduler)
-                .map(i -> unitOfWork.apply(i, supplier0))
-                .take(unitOfWorkDuration)
-                .then(cleanUp.apply(supplier0))
-                .cast(Mono.class);
-          }))
+          .flatMap(supplier0 -> Flux.fromStream(LongStream.range(0, unitOfWorkNumber).boxed())
+              .publishOn(scheduler)
+              .map(i -> unitOfWork.apply(i, supplier0))
+              .take(unitOfWorkDuration)
+              .doFinally($ -> cleanUp.apply(supplier0).subscribe())))
           .blockLast();
     } finally {
       self.shutdown();
