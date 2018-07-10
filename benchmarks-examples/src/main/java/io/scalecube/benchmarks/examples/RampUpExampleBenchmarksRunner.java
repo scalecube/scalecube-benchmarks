@@ -26,9 +26,8 @@ public class RampUpExampleBenchmarksRunner {
 
     AtomicInteger generator = new AtomicInteger();
 
-    new ExampleServiceBenchmarksState(settings).run($ -> generator.incrementAndGet(),
+    new ExampleServiceBenchmarksState(settings).runForAsync($ -> generator.incrementAndGet(),
         state -> {
-
           ExampleService service = state.exampleService();
           Timer timer = state.timer("timer");
 

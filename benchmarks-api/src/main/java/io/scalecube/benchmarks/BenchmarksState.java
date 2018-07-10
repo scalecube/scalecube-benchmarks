@@ -249,7 +249,8 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
    *        benchmark test would {@link Publisher#subscribe(Subscriber) subscribe}, And upon all subscriptions - await
    *        for termination.
    */
-  public final <T> void run(Function<SELF, T> supplier, Function<SELF, BiFunction<Long, T, Publisher<?>>> func) {
+  public final <T> void runForAsync(Function<SELF, T> supplier,
+      Function<SELF, BiFunction<Long, T, Publisher<?>>> func) {
     // noinspection unchecked
     @SuppressWarnings("unchecked")
     SELF self = (SELF) this;
