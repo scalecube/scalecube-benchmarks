@@ -21,7 +21,7 @@ public class RampUpExampleBenchmarksRunner {
     BenchmarksSettings settings = BenchmarksSettings.from(args)
         .rampUpAllDuration(Duration.ofSeconds(10))
         .rampUpDurationPerSupplier(Duration.ofSeconds(1))
-        .executionTaskTime(Duration.ofSeconds(5))
+        .executionTaskTime(Duration.ofSeconds(60))
         .durationUnit(TimeUnit.NANOSECONDS)
         .build();
 
