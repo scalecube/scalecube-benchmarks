@@ -5,7 +5,6 @@ import com.codahale.metrics.CsvReporter;
 import com.codahale.metrics.Histogram;
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.Timer;
-import com.codahale.metrics.jvm.MemoryUsageGaugeSet;
 
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -18,6 +17,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -75,8 +78,8 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
 
     LOGGER.info("Benchmarks settings: " + settings);
 
-    settings.registry().register(settings.taskName() + "-memory", new MemoryUsageGaugeSet());
-
+    // settings.registry().register(settings.taskName() + "-memory", new MemoryUsageGaugeSet());
+    //
     consoleReporter = ConsoleReporter.forRegistry(settings.registry())
         .outputTo(System.out)
         .convertDurationsTo(settings.durationUnit())
@@ -88,7 +91,9 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
         .convertRatesTo(settings.rateUnit())
         .build(settings.csvReporterDirectory());
 
-    scheduler = Schedulers.fromExecutor(Executors.newFixedThreadPool(settings.nThreads()));
+    scheduler = Schedulers.fromExecutorService(Executors.newFixedThreadPool(settings.nThreads()));
+
+
 
     try {
       beforeAll();
@@ -97,7 +102,7 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
     }
 
     consoleReporter.start(settings.reporterPeriod().toMillis(), TimeUnit.MILLISECONDS);
-    csvReporter.start(settings.reporterPeriod().toMillis(), TimeUnit.MILLISECONDS);
+    // csvReporter.start(settings.reporterPeriod().toMillis(), TimeUnit.MILLISECONDS);
 
     Runtime.getRuntime().addShutdownHook(new Thread(() -> {
       if (started.get()) {
@@ -257,20 +262,53 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
     try {
       self.start();
 
+      ExecutorService executorService = Executors.newFixedThreadPool(settings.nThreads());
+
       BiFunction<Long, T, Publisher<?>> unitOfWork = func.apply(self);
 
       long unitOfWorkNumber = settings.numOfIterations();
       Duration unitOfWorkDuration = settings.executionTaskTime();
 
-      Flux.merge(Flux.interval(settings.rampUpDurationPerSupplier())
-          .take(settings.rampUpAllDuration())
-          .flatMap(i -> supplier.apply(self))
-          .flatMap(supplier0 -> Flux.fromStream(LongStream.range(0, unitOfWorkNumber).boxed())
-              .publishOn(scheduler)
-              .map(i -> unitOfWork.apply(i, supplier0))
-              .take(unitOfWorkDuration)
-              .doFinally($ -> cleanUp.apply(supplier0).subscribe())))
-          .blockLast();
+      CountDownLatch latch = new CountDownLatch(settings.nThreads());
+
+
+
+      List<Flux> list = new ArrayList<>();
+
+      for (int n = 0; n < settings.nThreads(); n++) {
+        // executorService.submit(() -> {
+        list.add(Flux.merge(Flux.interval(settings.rampUpDurationPerSupplier())
+            .take(settings.rampUpAllDuration())
+            .flatMap(i -> supplier.apply(self))
+            .flatMap(supplier0 -> Flux.fromStream(LongStream.range(0, unitOfWorkNumber).boxed())
+                .map(i -> unitOfWork.apply(i, supplier0))
+                .take(unitOfWorkDuration)
+                .doFinally($ -> cleanUp.apply(supplier0).subscribe())))
+            .doFinally($ -> latch.countDown()));
+        // });
+      }
+
+      list.forEach(p -> p.subscribeOn(scheduler).subscribe());
+
+
+      // Thread.currentThread().join();
+      // Flux.merge(list.toArray(new Publisher[0])).blockLast();
+
+      latch.await();
+
+      // Flux.merge(Flux.interval(settings.rampUpDurationPerSupplier())
+      // .take(settings.rampUpAllDuration())
+      // .flatMap(i -> supplier.apply(self))
+      // .flatMap(supplier0 -> Flux.fromStream(LongStream.range(0, unitOfWorkNumber).boxed())
+      // .publishOn(scheduler)
+      // .map(i -> unitOfWork.apply(i, supplier0))
+      // .take(unitOfWorkDuration)
+      // .doFinally($ -> cleanUp.apply(supplier0).subscribe())))
+      // .blockLast();
+      // } catch (InterruptedException e) {
+      // e.printStackTrace();
+    } catch (InterruptedException e) {
+      e.printStackTrace();
     } finally {
       self.shutdown();
     }
