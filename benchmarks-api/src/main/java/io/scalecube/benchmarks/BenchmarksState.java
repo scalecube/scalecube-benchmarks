@@ -18,11 +18,17 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 
 
@@ -250,6 +256,7 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
    */
   public final <T> void runForAsync(Function<SELF, Mono<T>> supplier,
       Function<SELF, BiFunction<Long, T, Publisher<?>>> func, Function<T, Mono<Void>> cleanUp) {
+
     // noinspection unchecked
     @SuppressWarnings("unchecked")
     SELF self = (SELF) this;
@@ -261,17 +268,90 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
       long unitOfWorkNumber = settings.numOfIterations();
       Duration unitOfWorkDuration = settings.executionTaskTime();
 
-      Flux.merge(Flux.interval(settings.rampUpDurationPerSupplier())
+      List<Scheduler> schedulers = IntStream.rangeClosed(1, Runtime.getRuntime().availableProcessors())
+          .mapToObj(i -> Schedulers.fromExecutorService(Executors.newSingleThreadScheduledExecutor()))
+          .collect(Collectors.toList());
+
+      Flux.interval(settings.rampUpDurationPerSupplier())
           .take(settings.rampUpAllDuration())
-          .flatMap(i -> supplier.apply(self))
-          .flatMap(supplier0 -> Flux.fromStream(LongStream.range(0, unitOfWorkNumber).boxed())
-              .publishOn(scheduler)
-              .map(i -> unitOfWork.apply(i, supplier0))
-              .take(unitOfWorkDuration)
-              .doFinally($ -> cleanUp.apply(supplier0).subscribe())))
+          .doOnNext(aLong -> {
+            int i = (int) ((aLong & Long.MAX_VALUE) % schedulers.size());
+            new MyRunnable<>(supplier, self, unitOfWork, schedulers.get(i)).run();
+          })
           .blockLast();
+
+      try {
+        Thread.currentThread().join();
+      } catch (InterruptedException e) {
+        e.printStackTrace();
+      }
+
+      // Flux.merge(Flux.interval(settings.rampUpDurationPerSupplier())
+      // .take(settings.rampUpAllDuration())
+      // .flatMap(i -> supplier.apply(self))
+      // .flatMap(supplier0 -> Flux.fromStream(LongStream.range(0, unitOfWorkNumber).boxed())
+      // .publishOn(scheduler)
+      // .map(i -> unitOfWork.apply(i, supplier0))
+      // .take(unitOfWorkDuration)
+      // .doFinally($ -> cleanUp.apply(supplier0).subscribe())))
+      // .blockLast();
+
     } finally {
       self.shutdown();
+    }
+  }
+
+  private static class MyRunnable<SELF, T> implements Runnable {
+
+    // public static final ScheduledExecutorService EXECUTOR = Executors.newSingleThreadScheduledExecutor();
+
+    private final Function<SELF, Mono<T>> supplier;
+    private final SELF self;
+    private final BiFunction<Long, T, Publisher<?>> unitOfWork;
+
+    private final AtomicInteger state = new AtomicInteger();
+    private final AtomicReference<T> resultReference = new AtomicReference<>();
+    private final AtomicLong iterations = new AtomicLong();
+    private final Scheduler scheduler;
+
+    public MyRunnable(Function<SELF, Mono<T>> supplier,
+        SELF self,
+        BiFunction<Long, T, Publisher<?>> unitOfWork,
+        Scheduler scheduler) {
+
+      this.supplier = supplier;
+      this.self = self;
+      this.unitOfWork = unitOfWork;
+      this.scheduler = scheduler;
+    }
+
+    @Override
+    public void run() {
+      if (state.compareAndSet(0, 1)) { // started
+        Mono<T> supplierMono = supplier.apply(self);
+        supplierMono.subscribe(
+            result -> {
+              // netty epoll thread - 0
+              if (state.compareAndSet(1, 2)) { // scheduled
+                resultReference.set(result);
+                scheduler.schedule(this);
+              }
+            },
+            throwable -> {
+              // byte byte
+            },
+            () -> {
+              // byte byte
+            });
+      }
+      if (state.get() == 2) { // executing
+        long i = iterations.incrementAndGet();
+        T t = resultReference.get();
+
+        Flux.from(unitOfWork.apply(i, t)).subscribe();
+
+        scheduler.schedule(this, 0, TimeUnit.MILLISECONDS);
+      }
     }
   }
 }
