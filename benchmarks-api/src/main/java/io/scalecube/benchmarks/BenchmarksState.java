@@ -276,7 +276,7 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
           .take(settings.rampUpAllDuration())
           .doOnNext(aLong -> {
             int i = (int) ((aLong & Long.MAX_VALUE) % schedulers.size());
-            new MyRunnable<>(supplier, self, unitOfWork, schedulers.get(i)).run();
+            new MyRunnable<>(supplier, unitOfWork, schedulers.get(i)).run();
           })
           .blockLast();
 
@@ -301,12 +301,16 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
     }
   }
 
-  private static class MyRunnable<SELF, T> implements Runnable {
+  private class MyRunnable<T> implements Runnable {
+    private static final int NOT_STARTED = 0;
+    private static final int STARTED = 1;
+    private static final int SCHEDULED = 2;
+    private static final int ERROR = 3;
+    private static final int FINISH = 4;
 
     // public static final ScheduledExecutorService EXECUTOR = Executors.newSingleThreadScheduledExecutor();
 
     private final Function<SELF, Mono<T>> supplier;
-    private final SELF self;
     private final BiFunction<Long, T, Publisher<?>> unitOfWork;
 
     private final AtomicInteger state = new AtomicInteger();
@@ -315,40 +319,46 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
     private final Scheduler scheduler;
 
     public MyRunnable(Function<SELF, Mono<T>> supplier,
-        SELF self,
         BiFunction<Long, T, Publisher<?>> unitOfWork,
         Scheduler scheduler) {
 
       this.supplier = supplier;
-      this.self = self;
       this.unitOfWork = unitOfWork;
       this.scheduler = scheduler;
     }
 
     @Override
     public void run() {
-      if (state.compareAndSet(0, 1)) { // started
-        Mono<T> supplierMono = supplier.apply(self);
+      if (state.compareAndSet(NOT_STARTED, STARTED)) { // started
+        // noinspection unchecked
+        Mono<T> supplierMono = supplier.apply((SELF) BenchmarksState.this);
         supplierMono.subscribe(
             result -> {
               // netty epoll thread - 0
-              if (state.compareAndSet(1, 2)) { // scheduled
+              if (state.compareAndSet(STARTED, SCHEDULED)) { // scheduled
                 resultReference.set(result);
                 scheduler.schedule(this);
+                scheduler.schedule(() -> state.set(FINISH), settings.executionTaskTime().toMillis(),
+                    TimeUnit.MILLISECONDS);
               }
             },
             throwable -> {
-              // byte byte
+              state.set(ERROR);
             },
             () -> {
               // byte byte
             });
       }
-      if (state.get() == 2) { // executing
+      if (state.get() == SCHEDULED) { // executing
         long i = iterations.incrementAndGet();
         T t = resultReference.get();
 
-        Flux.from(unitOfWork.apply(i, t)).subscribe();
+        Flux.from(unitOfWork.apply(i, t))
+            .doOnError(ex -> {
+              state.set(ERROR);
+              ex.printStackTrace();
+            })
+            .subscribe();
 
         scheduler.schedule(this, 0, TimeUnit.MILLISECONDS);
       }
