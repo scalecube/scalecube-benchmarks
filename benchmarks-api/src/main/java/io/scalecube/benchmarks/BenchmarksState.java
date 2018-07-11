@@ -17,8 +17,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -268,46 +266,101 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
 
       long unitOfWorkNumber = settings.numOfIterations();
       Duration unitOfWorkDuration = settings.executionTaskTime();
-
-      CountDownLatch latch = new CountDownLatch(settings.nThreads());
-
-
-
-      List<Flux> list = new ArrayList<>();
-
-      for (int n = 0; n < settings.nThreads(); n++) {
-        // executorService.submit(() -> {
-        list.add(Flux.merge(Flux.interval(settings.rampUpDurationPerSupplier())
-            .take(settings.rampUpAllDuration())
-            .flatMap(i -> supplier.apply(self))
-            .flatMap(supplier0 -> Flux.fromStream(LongStream.range(0, unitOfWorkNumber).boxed())
-                .map(i -> unitOfWork.apply(i, supplier0))
-                .take(unitOfWorkDuration)
-                .doFinally($ -> cleanUp.apply(supplier0).subscribe())))
-            .doFinally($ -> latch.countDown()));
-        // });
-      }
-
-      list.forEach(p -> p.subscribeOn(scheduler).subscribe());
-
-
-      // Thread.currentThread().join();
-      // Flux.merge(list.toArray(new Publisher[0])).blockLast();
-
-      latch.await();
+      //
+      // CountDownLatch latch = new CountDownLatch(settings.nThreads());
+      //
+      //
+      //
+      // List<Flux> list = new ArrayList<>();
+      //
+      // for (int n = 0; n < settings.nThreads(); n++) {
+      // // executorService.submit(() -> {
+      // list.add(Flux.merge(Flux.interval(settings.rampUpDurationPerSupplier())
+      // .take(settings.rampUpAllDuration())
+      // .flatMap(i -> supplier.apply(self))
+      // .flatMap(supplier0 -> Flux.fromStream(LongStream.range(0, unitOfWorkNumber).boxed())
+      // .map(i -> unitOfWork.apply(i, supplier0))
+      // .take(unitOfWorkDuration)
+      // .doFinally($ -> cleanUp.apply(supplier0).subscribe())))
+      // .doFinally($ -> latch.countDown()));
+      // // });
+      // }
+      //
+      // list.forEach(p -> p.subscribeOn(scheduler).subscribe());
+      //
+      //
+      // // Thread.currentThread().join();
+      // // Flux.merge(list.toArray(new Publisher[0])).blockLast();
+      //
+      // latch.await();
 
       // Flux.merge(Flux.interval(settings.rampUpDurationPerSupplier())
       // .take(settings.rampUpAllDuration())
       // .flatMap(i -> supplier.apply(self))
       // .flatMap(supplier0 -> Flux.fromStream(LongStream.range(0, unitOfWorkNumber).boxed())
-      // .publishOn(scheduler)
       // .map(i -> unitOfWork.apply(i, supplier0))
       // .take(unitOfWorkDuration)
+      // .subscribeOn(scheduler)
       // .doFinally($ -> cleanUp.apply(supplier0).subscribe())))
       // .blockLast();
-      // } catch (InterruptedException e) {
-      // e.printStackTrace();
-    } catch (InterruptedException e) {
+
+      int n = 4;
+      CountDownLatch latch = new CountDownLatch(n);
+      Duration period = settings.rampUpDurationPerSupplier().dividedBy(n);
+      Duration duration = settings.rampUpAllDuration();
+
+      for (int j = 0; j < n; j++) {
+        int subscriber = j;
+        Flux.merge(Flux.interval(settings.rampUpDurationPerSupplier())
+            .take(settings.rampUpAllDuration())
+            .flatMap(i -> supplier.apply(self))
+            .flatMap(supplier0 -> {
+              System.err.println("------------> start #" + subscriber + ":" + supplier0);
+              return Flux.fromStream(LongStream.range(0, unitOfWorkNumber).boxed())
+                  .map(i -> unitOfWork.apply(i, supplier0))
+                  .doOnNext(next -> System.err.println("------------> next #" + subscriber + ":" + supplier0))
+                  .take(unitOfWorkDuration)
+                  .subscribeOn(scheduler)
+                  .doFinally($ -> {
+                    System.err.println("------------> finish #" + subscriber + ":" + supplier0);
+                    cleanUp.apply(supplier0).subscribe();
+                  });
+            }))
+            .doFinally($ -> {
+              System.err.println("------------> finish #" + subscriber);
+              latch.countDown();
+            })
+            // .subscribeOn(scheduler)
+            .subscribe();
+      }
+
+      latch.await();
+
+
+
+      // int subscriber = 1;
+      // Flux.merge(Flux.interval(settings.rampUpDurationPerSupplier())
+      // .take(settings.rampUpAllDuration())
+      // .flatMap(i -> supplier.apply(self))
+      // .flatMap(supplier0 -> {
+      // System.err.println("------------> start #" + subscriber + ":" + supplier0);
+      // return Flux.fromStream(LongStream.range(0, unitOfWorkNumber).boxed())
+      // .map(i -> unitOfWork.apply(i, supplier0))
+      // .take(unitOfWorkDuration)
+      // .subscribeOn(scheduler)
+      // .doFinally($ -> {
+      // System.err.println("------------> finish #" + subscriber + ":" + supplier0);
+      // cleanUp.apply(supplier0).subscribe();
+      // });
+      // }))
+      // .doFinally($ -> {
+      // System.err.println("------------> finish #" + subscriber);
+      //// latch.countDown();
+      // })
+      // // .subscribeOn(scheduler)
+      // .blockLast();
+
+    } catch (Exception e) {
       e.printStackTrace();
     } finally {
       self.shutdown();

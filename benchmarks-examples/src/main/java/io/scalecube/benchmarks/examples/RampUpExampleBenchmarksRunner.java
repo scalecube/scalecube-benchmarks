@@ -19,11 +19,11 @@ public class RampUpExampleBenchmarksRunner {
    */
   public static void main(String[] args) {
     BenchmarksSettings settings = BenchmarksSettings.from(args)
-        .rampUpAllDuration(Duration.ofSeconds(10))
-        .rampUpDurationPerSupplier(Duration.ofSeconds(1))
+        .rampUpAllDuration(Duration.ofSeconds(2))
+        .rampUpDurationPerSupplier(Duration.ofMillis(800))
         .executionTaskTime(Duration.ofSeconds(10))
         .durationUnit(TimeUnit.NANOSECONDS)
-        .reporterPeriod(Duration.ofSeconds(10))
+        .reporterPeriod(Duration.ofSeconds(30))
         .build();
 
     new ExampleServiceBenchmarksState(settings).runForAsync(
@@ -60,6 +60,11 @@ public class RampUpExampleBenchmarksRunner {
         COUNTER.set(0);
         return Mono.empty();
       });
+    }
+
+    @Override
+    public String toString() {
+      return "ServiceCall{id=" + id + '}';
     }
   }
 }
