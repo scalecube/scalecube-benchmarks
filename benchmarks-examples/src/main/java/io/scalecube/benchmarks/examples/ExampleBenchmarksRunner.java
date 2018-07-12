@@ -16,7 +16,7 @@ public class ExampleBenchmarksRunner {
    * @param args command line args
    */
   public static void main(String[] args) {
-    BenchmarksSettings settings = BenchmarksSettings.from(args).durationUnit(TimeUnit.NANOSECONDS).build();
+    BenchmarksSettings settings = BenchmarksSettings.from(args).reporterDurationUnit(TimeUnit.NANOSECONDS).build();
     new ExampleServiceBenchmarksState(settings).runForAsync(state -> {
 
       ExampleService service = state.exampleService();
