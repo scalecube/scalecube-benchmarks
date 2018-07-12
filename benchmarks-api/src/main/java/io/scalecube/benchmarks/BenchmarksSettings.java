@@ -17,25 +17,25 @@ import java.util.concurrent.TimeUnit;
 public class BenchmarksSettings {
 
   private static final int N_THREADS = Runtime.getRuntime().availableProcessors();
-  private static final Duration EXECUTION_TASK_TIME = Duration.ofSeconds(60);
-  private static final Duration REPORTER_PERIOD = Duration.ofSeconds(3);
+  private static final Duration EXECUTION_TASK_DURATION = Duration.ofSeconds(60);
+  private static final Duration REPORTER_INTERVAL = Duration.ofSeconds(3);
   private static final TimeUnit DURATION_UNIT = TimeUnit.MILLISECONDS;
   private static final TimeUnit RATE_UNIT = TimeUnit.SECONDS;
   private static final long NUM_OF_ITERATIONS = Long.MAX_VALUE;
-  private static final Duration RAMP_UP_ALL_DURATION = Duration.ofSeconds(10);
-  private static final Duration RAMP_UP_DURATION_PER_SUPPLIER = Duration.ofSeconds(1);
+  private static final Duration RAMP_UP_DURATION = Duration.ofSeconds(10);
+  private static final Duration RAMP_UP_INTERVAL = Duration.ofSeconds(1);
 
   private final int nThreads;
-  private final Duration executionTaskTime;
-  private final Duration reporterPeriod;
+  private final Duration executionTaskDuration;
+  private final Duration reporterInterval;
   private final File csvReporterDirectory;
   private final String taskName;
   private final TimeUnit durationUnit;
   private final TimeUnit rateUnit;
   private final MetricRegistry registry;
   private final long numOfIterations;
-  private final Duration rampUpAllDuration;
-  private final Duration rampUpDurationPerSupplier;
+  private final Duration rampUpDuration;
+  private final Duration rampUpInterval;
 
   private final Map<String, String> options;
 
@@ -45,12 +45,12 @@ public class BenchmarksSettings {
 
   private BenchmarksSettings(Builder builder) {
     this.nThreads = builder.nThreads;
-    this.executionTaskTime = builder.executionTaskTime;
-    this.reporterPeriod = builder.reporterPeriod;
+    this.executionTaskDuration = builder.executionTaskDuration;
+    this.reporterInterval = builder.reporterInterval;
     this.numOfIterations = builder.numOfIterations;
 
-    this.rampUpAllDuration = builder.rampUpAllDuration;
-    this.rampUpDurationPerSupplier = builder.rampUpDurationPerSupplier;
+    this.rampUpDuration = builder.rampUpDuration;
+    this.rampUpInterval = builder.rampUpInterval;
 
     this.options = builder.options;
 
@@ -73,12 +73,12 @@ public class BenchmarksSettings {
     return nThreads;
   }
 
-  public Duration executionTaskTime() {
-    return executionTaskTime;
+  public Duration executionTaskDuration() {
+    return executionTaskDuration;
   }
 
-  public Duration reporterPeriod() {
-    return reporterPeriod;
+  public Duration reporterInterval() {
+    return reporterInterval;
   }
 
   public File csvReporterDirectory() {
@@ -109,27 +109,27 @@ public class BenchmarksSettings {
     return numOfIterations;
   }
 
-  public Duration rampUpAllDuration() {
-    return rampUpAllDuration;
+  public Duration rampUpDuration() {
+    return rampUpDuration;
   }
 
-  public Duration rampUpDurationPerSupplier() {
-    return rampUpDurationPerSupplier;
+  public Duration rampUpInterval() {
+    return rampUpInterval;
   }
 
   @Override
   public String toString() {
     final StringBuilder sb = new StringBuilder("BenchmarksSettings{");
     sb.append("nThreads=").append(nThreads);
-    sb.append(", executionTaskTime=").append(executionTaskTime);
+    sb.append(", executionTaskDuration=").append(executionTaskDuration);
     sb.append(", numOfIterations=").append(numOfIterations);
-    sb.append(", reporterPeriod=").append(reporterPeriod);
+    sb.append(", reporterInterval=").append(reporterInterval);
     sb.append(", csvReporterDirectory=").append(csvReporterDirectory);
     sb.append(", taskName='").append(taskName).append('\'');
     sb.append(", durationUnit=").append(durationUnit);
     sb.append(", rateUnit=").append(rateUnit);
-    sb.append(", rampUpAllDuration=").append(rampUpAllDuration);
-    sb.append(", rampUpDurationPerSupplier=").append(rampUpDurationPerSupplier);
+    sb.append(", rampUpDuration=").append(rampUpDuration);
+    sb.append(", rampUpInterval=").append(rampUpInterval);
     sb.append(", registry=").append(registry);
     sb.append(", options=").append(options);
     sb.append('}');
@@ -137,16 +137,16 @@ public class BenchmarksSettings {
   }
 
   private String minifyClassName(String className) {
-    return className.replaceAll("\\B\\w+(\\.[a-zA-Z])","$1");
+    return className.replaceAll("\\B\\w+(\\.[a-zA-Z])", "$1");
   }
 
   private String allPropertiesAsString() {
     Map<String, String> allProperties = new TreeMap<>(options);
     allProperties.put("nThreads", String.valueOf(nThreads));
-    allProperties.put("executionTaskTime", String.valueOf(executionTaskTime));
+    allProperties.put("executionTaskDuration", String.valueOf(executionTaskDuration));
     allProperties.put("numOfIterations", String.valueOf(numOfIterations));
-    allProperties.put("rampUpAllDuration", String.valueOf(rampUpAllDuration));
-    allProperties.put("rampUpDurationPerSupplier", String.valueOf(rampUpDurationPerSupplier));
+    allProperties.put("rampUpDuration", String.valueOf(rampUpDuration));
+    allProperties.put("rampUpInterval", String.valueOf(rampUpInterval));
     StringBuilder sb = new StringBuilder();
     for (Map.Entry<String, String> entry : allProperties.entrySet()) {
       sb.append("_").append(entry.getKey()).append("=").append(entry.getValue());
@@ -158,13 +158,13 @@ public class BenchmarksSettings {
     private final Map<String, String> options = new HashMap<>();
 
     private int nThreads = N_THREADS;
-    private Duration executionTaskTime = EXECUTION_TASK_TIME;
-    private Duration reporterPeriod = REPORTER_PERIOD;
+    private Duration executionTaskDuration = EXECUTION_TASK_DURATION;
+    private Duration reporterInterval = REPORTER_INTERVAL;
     private TimeUnit durationUnit = DURATION_UNIT;
     private TimeUnit rateUnit = RATE_UNIT;
     private long numOfIterations = NUM_OF_ITERATIONS;
-    private Duration rampUpAllDuration = RAMP_UP_ALL_DURATION;
-    private Duration rampUpDurationPerSupplier = RAMP_UP_DURATION_PER_SUPPLIER;
+    private Duration rampUpDuration = RAMP_UP_DURATION;
+    private Duration rampUpInterval = RAMP_UP_INTERVAL;
 
     public Builder from(String[] args) {
       this.parse(args);
@@ -178,13 +178,13 @@ public class BenchmarksSettings {
       return this;
     }
 
-    public Builder executionTaskTime(Duration executionTaskTime) {
-      this.executionTaskTime = executionTaskTime;
+    public Builder executionTaskDuration(Duration executionTaskDuration) {
+      this.executionTaskDuration = executionTaskDuration;
       return this;
     }
 
-    public Builder reporterPeriod(Duration reporterPeriod) {
-      this.reporterPeriod = reporterPeriod;
+    public Builder reporterInterval(Duration reporterInterval) {
+      this.reporterInterval = reporterInterval;
       return this;
     }
 
@@ -208,13 +208,13 @@ public class BenchmarksSettings {
       return this;
     }
 
-    public Builder rampUpAllDuration(Duration rampUpAllDuration) {
-      this.rampUpAllDuration = rampUpAllDuration;
+    public Builder rampUpDuration(Duration rampUpDuration) {
+      this.rampUpDuration = rampUpDuration;
       return this;
     }
 
-    public Builder rampUpDurationPerSupplier(Duration rampUpDurationPerSupplier) {
-      this.rampUpDurationPerSupplier = rampUpDurationPerSupplier;
+    public Builder rampUpInterval(Duration rampUpInterval) {
+      this.rampUpInterval = rampUpInterval;
       return this;
     }
 
@@ -232,20 +232,20 @@ public class BenchmarksSettings {
             case "nThreads":
               nThreads(Integer.parseInt(value));
               break;
-            case "executionTaskTimeInSec":
-              executionTaskTime(Duration.ofSeconds(Long.parseLong(value)));
+            case "executionTaskDurationInSec":
+              executionTaskDuration(Duration.ofSeconds(Long.parseLong(value)));
               break;
-            case "reporterPeriodInSec":
-              reporterPeriod(Duration.ofSeconds(Long.parseLong(value)));
+            case "reporterIntervalInSec":
+              reporterInterval(Duration.ofSeconds(Long.parseLong(value)));
               break;
             case "numOfIterations":
               numOfIterations(Long.parseLong(value));
               break;
-            case "rampUpAllDurationInMillis":
-              rampUpAllDuration(Duration.ofMillis(Long.parseLong(value)));
+            case "rampUpDurationInSec":
+              rampUpDuration(Duration.ofSeconds(Long.parseLong(value)));
               break;
-            case "rampUpDurationPerSupplierInMillis":
-              rampUpDurationPerSupplier(Duration.ofMillis(Long.parseLong(value)));
+            case "rampUpIntervalInMillis":
+              rampUpInterval(Duration.ofMillis(Long.parseLong(value)));
               break;
             default:
               addOption(key, value);

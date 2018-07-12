@@ -52,7 +52,7 @@ public class BenchmarksTask<SELF extends BenchmarksState<SELF>, T> implements Ru
     this.cleanUp = cleanUp;
     this.scheduler = scheduler;
     this.numOfIterations = benchmarksState.settings.numOfIterations();
-    this.executionTaskTime = benchmarksState.settings.executionTaskTime();
+    this.executionTaskTime = benchmarksState.settings.executionTaskDuration();
   }
 
   @Override
@@ -102,6 +102,10 @@ public class BenchmarksTask<SELF extends BenchmarksState<SELF>, T> implements Ru
         startCompletingWithError(ex);
       }
     }
+  }
+
+  public Mono<Void> completionMono() {
+    return Mono.fromFuture(taskCompletionFuture);
   }
 
   private boolean setCompleted() {

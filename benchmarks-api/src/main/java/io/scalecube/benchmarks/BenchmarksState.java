@@ -50,6 +50,8 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
   protected final BenchmarksSettings settings;
 
   protected Scheduler scheduler;
+  protected List<Scheduler> schedulers;
+
   private ConsoleReporter consoleReporter;
   private CsvReporter csvReporter;
 
@@ -92,14 +94,18 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
 
     scheduler = Schedulers.fromExecutor(Executors.newFixedThreadPool(settings.nThreads()));
 
+    schedulers = IntStream.rangeClosed(1, settings.nThreads())
+        .mapToObj(i -> Schedulers.fromExecutorService(Executors.newSingleThreadScheduledExecutor()))
+        .collect(Collectors.toList());
+
     try {
       beforeAll();
     } catch (Exception ex) {
       throw new IllegalStateException("BenchmarksState beforeAll() failed: " + ex, ex);
     }
 
-    consoleReporter.start(settings.reporterPeriod().toMillis(), TimeUnit.MILLISECONDS);
-    csvReporter.start(settings.reporterPeriod().toMillis(), TimeUnit.MILLISECONDS);
+    consoleReporter.start(settings.reporterInterval().toMillis(), TimeUnit.MILLISECONDS);
+    csvReporter.start(settings.reporterInterval().toMillis(), TimeUnit.MILLISECONDS);
 
     Runtime.getRuntime().addShutdownHook(new Thread(() -> {
       if (started.get()) {
@@ -132,6 +138,10 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
       scheduler.dispose();
     }
 
+    if (schedulers != null) {
+      schedulers.forEach(Scheduler::dispose);
+    }
+
     try {
       afterAll();
     } catch (Exception ex) {
@@ -141,6 +151,10 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
 
   public Scheduler scheduler() {
     return scheduler;
+  }
+
+  public List<Scheduler> schedulers() {
+    return schedulers;
   }
 
   /**
@@ -196,7 +210,7 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
 
       Flux.merge(fromStream
           .publishOn(scheduler()).map(unitOfWork))
-          .take(settings.executionTaskTime())
+          .take(settings.executionTaskDuration())
           .blockLast();
     } finally {
       self.shutdown();
@@ -227,7 +241,7 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
       Flux<Long> fromStream = Flux.fromStream(LongStream.range(0, settings.numOfIterations()).boxed());
 
       Flux.merge(fromStream.publishOn(scheduler()).map(unitOfWork))
-          .take(settings.executionTaskTime())
+          .take(settings.executionTaskDuration())
           .blockLast();
     } finally {
       self.shutdown();
@@ -255,10 +269,6 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
       Function<SELF, BiFunction<Long, T, Publisher<?>>> func,
       Function<T, Mono<Void>> cleanUp) {
 
-    List<Scheduler> schedulers = IntStream.rangeClosed(1, Runtime.getRuntime().availableProcessors())
-        .mapToObj(i -> Schedulers.fromExecutorService(Executors.newSingleThreadScheduledExecutor()))
-        .collect(Collectors.toList());
-
     // noinspection unchecked
     @SuppressWarnings("unchecked")
     SELF self = (SELF) this;
@@ -267,22 +277,17 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
 
       BiFunction<Long, T, Publisher<?>> unitOfWork = func.apply(self);
 
-      Flux.interval(settings.rampUpDurationPerSupplier())
-          .take(settings.rampUpAllDuration())
-          .doOnNext(aLong -> {
-            int i = (int) ((aLong & Long.MAX_VALUE) % schedulers.size());
-            Scheduler scheduler = schedulers.get(i);
+      Flux.interval(settings.rampUpInterval())
+          .take(settings.rampUpDuration())
+          .flatMap(aLong -> {
+            int i = (int) ((aLong & Long.MAX_VALUE) % schedulers().size());
+            Scheduler scheduler = schedulers().get(i);
             BenchmarksTask<SELF, T> benchmarksTask =
                 new BenchmarksTask<>(self, supplier, unitOfWork, cleanUp, scheduler);
             scheduler.schedule(benchmarksTask);
+            return benchmarksTask.completionMono();
           })
           .blockLast();
-
-      try {
-        Thread.currentThread().join();
-      } catch (InterruptedException e) {
-        e.printStackTrace();
-      }
     } finally {
       self.shutdown();
     }
