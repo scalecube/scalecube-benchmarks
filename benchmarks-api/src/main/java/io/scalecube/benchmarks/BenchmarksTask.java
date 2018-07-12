@@ -31,7 +31,8 @@ public class BenchmarksTask<SELF extends BenchmarksState<SELF>, T> implements Ru
   private final BiFunction<Long, T, Publisher<?>> unitOfWork;
   private final Function<T, Mono<Void>> cleanUp;
   private final long numOfIterations;
-  private final Duration executionTaskTime;
+  private final Duration executionTaskDuration;
+  private final Duration executionTaskInterval;
   private final Scheduler scheduler;
 
   private final AtomicLong iterationsCounter = new AtomicLong();
@@ -52,7 +53,8 @@ public class BenchmarksTask<SELF extends BenchmarksState<SELF>, T> implements Ru
     this.cleanUp = cleanUp;
     this.scheduler = scheduler;
     this.numOfIterations = benchmarksState.settings.numOfIterations();
-    this.executionTaskTime = benchmarksState.settings.executionTaskDuration();
+    this.executionTaskDuration = benchmarksState.settings.executionTaskDuration();
+    this.executionTaskInterval = benchmarksState.settings.executionTaskInterval();
   }
 
   @Override
@@ -69,18 +71,25 @@ public class BenchmarksTask<SELF extends BenchmarksState<SELF>, T> implements Ru
     if (isScheduled()) { // executing
       long iter = iterationsCounter.incrementAndGet();
       T res = supplierResult.get(); // not null here
+
       Flux.from(unitOfWork.apply(iter, res))
           .doOnError(ignore -> {
             // no-op
           })
           .subscribe();
-      scheduler.schedule(this);
+
+      if (executionTaskInterval == null || executionTaskInterval.isZero()) {
+        scheduler.schedule(this);
+      } else {
+        scheduler.schedule(this, executionTaskInterval.toMillis(), TimeUnit.MILLISECONDS);
+      }
+
       return;
     }
 
     if (setStarted()) { // started
       scheduledCompletingTask
-          .set(scheduler.schedule(this::startCompleting, executionTaskTime.toMillis(), TimeUnit.MILLISECONDS));
+          .set(scheduler.schedule(this::startCompleting, executionTaskDuration.toMillis(), TimeUnit.MILLISECONDS));
 
       try {
         Mono<T> supplierMono = supplier.apply(benchmarksState);

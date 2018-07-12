@@ -18,6 +18,7 @@ public class BenchmarksSettings {
 
   private static final int N_THREADS = Runtime.getRuntime().availableProcessors();
   private static final Duration EXECUTION_TASK_DURATION = Duration.ofSeconds(60);
+  private static final Duration EXECUTION_TASK_INTERVAL = Duration.ofSeconds(0);
   private static final Duration REPORTER_INTERVAL = Duration.ofSeconds(3);
   private static final TimeUnit DURATION_UNIT = TimeUnit.MILLISECONDS;
   private static final TimeUnit RATE_UNIT = TimeUnit.SECONDS;
@@ -27,6 +28,7 @@ public class BenchmarksSettings {
 
   private final int nThreads;
   private final Duration executionTaskDuration;
+  private final Duration executionTaskInterval;
   private final Duration reporterInterval;
   private final File csvReporterDirectory;
   private final String taskName;
@@ -46,6 +48,7 @@ public class BenchmarksSettings {
   private BenchmarksSettings(Builder builder) {
     this.nThreads = builder.nThreads;
     this.executionTaskDuration = builder.executionTaskDuration;
+    this.executionTaskInterval = builder.executionTaskInterval;
     this.reporterInterval = builder.reporterInterval;
     this.numOfIterations = builder.numOfIterations;
 
@@ -75,6 +78,10 @@ public class BenchmarksSettings {
 
   public Duration executionTaskDuration() {
     return executionTaskDuration;
+  }
+
+  public Duration executionTaskInterval() {
+    return executionTaskInterval;
   }
 
   public Duration reporterInterval() {
@@ -122,6 +129,7 @@ public class BenchmarksSettings {
     final StringBuilder sb = new StringBuilder("BenchmarksSettings{");
     sb.append("nThreads=").append(nThreads);
     sb.append(", executionTaskDuration=").append(executionTaskDuration);
+    sb.append(", executionTaskInterval=").append(executionTaskInterval);
     sb.append(", numOfIterations=").append(numOfIterations);
     sb.append(", reporterInterval=").append(reporterInterval);
     sb.append(", csvReporterDirectory=").append(csvReporterDirectory);
@@ -144,6 +152,7 @@ public class BenchmarksSettings {
     Map<String, String> allProperties = new TreeMap<>(options);
     allProperties.put("nThreads", String.valueOf(nThreads));
     allProperties.put("executionTaskDuration", String.valueOf(executionTaskDuration));
+    allProperties.put("executionTaskInterval", String.valueOf(executionTaskInterval));
     allProperties.put("numOfIterations", String.valueOf(numOfIterations));
     allProperties.put("rampUpDuration", String.valueOf(rampUpDuration));
     allProperties.put("rampUpInterval", String.valueOf(rampUpInterval));
@@ -159,6 +168,7 @@ public class BenchmarksSettings {
 
     private int nThreads = N_THREADS;
     private Duration executionTaskDuration = EXECUTION_TASK_DURATION;
+    private Duration executionTaskInterval = EXECUTION_TASK_INTERVAL;
     private Duration reporterInterval = REPORTER_INTERVAL;
     private TimeUnit durationUnit = DURATION_UNIT;
     private TimeUnit rateUnit = RATE_UNIT;
@@ -180,6 +190,11 @@ public class BenchmarksSettings {
 
     public Builder executionTaskDuration(Duration executionTaskDuration) {
       this.executionTaskDuration = executionTaskDuration;
+      return this;
+    }
+
+    public Builder executionTaskInterval(Duration executionTaskInterval) {
+      this.executionTaskInterval = executionTaskInterval;
       return this;
     }
 
@@ -234,6 +249,9 @@ public class BenchmarksSettings {
               break;
             case "executionTaskDurationInSec":
               executionTaskDuration(Duration.ofSeconds(Long.parseLong(value)));
+              break;
+            case "executionTaskIntervalInMillis":
+              executionTaskInterval(Duration.ofMillis(Long.parseLong(value)));
               break;
             case "reporterIntervalInSec":
               reporterInterval(Duration.ofSeconds(Long.parseLong(value)));

@@ -280,8 +280,10 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
       Flux.interval(settings.rampUpInterval())
           .take(settings.rampUpDuration())
           .flatMap(aLong -> {
+            // select scheduler and bind a task to it
             int i = (int) ((aLong & Long.MAX_VALUE) % schedulers().size());
             Scheduler scheduler = schedulers().get(i);
+            // create a task on selected scheduler
             BenchmarksTask<SELF, T> benchmarksTask =
                 new BenchmarksTask<>(self, supplier, unitOfWork, cleanUp, scheduler);
             scheduler.schedule(benchmarksTask);
