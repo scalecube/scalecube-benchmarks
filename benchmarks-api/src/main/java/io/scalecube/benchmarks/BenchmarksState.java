@@ -17,14 +17,10 @@ import org.reactivestreams.Subscriber;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -254,8 +250,14 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
    *        for termination.
    * @param cleanUp a function that should clean up some T's resources.
    */
-  public final <T> void runForAsync(Function<SELF, Mono<T>> supplier,
-      Function<SELF, BiFunction<Long, T, Publisher<?>>> func, Function<T, Mono<Void>> cleanUp) {
+  public final <T> void runForAsync(
+      Function<SELF, Mono<T>> supplier,
+      Function<SELF, BiFunction<Long, T, Publisher<?>>> func,
+      Function<T, Mono<Void>> cleanUp) {
+
+    List<Scheduler> schedulers = IntStream.rangeClosed(1, Runtime.getRuntime().availableProcessors())
+        .mapToObj(i -> Schedulers.fromExecutorService(Executors.newSingleThreadScheduledExecutor()))
+        .collect(Collectors.toList());
 
     // noinspection unchecked
     @SuppressWarnings("unchecked")
@@ -265,18 +267,14 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
 
       BiFunction<Long, T, Publisher<?>> unitOfWork = func.apply(self);
 
-      long unitOfWorkNumber = settings.numOfIterations();
-      Duration unitOfWorkDuration = settings.executionTaskTime();
-
-      List<Scheduler> schedulers = IntStream.rangeClosed(1, Runtime.getRuntime().availableProcessors())
-          .mapToObj(i -> Schedulers.fromExecutorService(Executors.newSingleThreadScheduledExecutor()))
-          .collect(Collectors.toList());
-
       Flux.interval(settings.rampUpDurationPerSupplier())
           .take(settings.rampUpAllDuration())
           .doOnNext(aLong -> {
             int i = (int) ((aLong & Long.MAX_VALUE) % schedulers.size());
-            new MyRunnable<>(supplier, unitOfWork, schedulers.get(i)).run();
+            Scheduler scheduler = schedulers.get(i);
+            BenchmarksTask<SELF, T> benchmarksTask =
+                new BenchmarksTask<>(self, supplier, unitOfWork, cleanUp, scheduler);
+            scheduler.schedule(benchmarksTask);
           })
           .blockLast();
 
@@ -285,83 +283,8 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
       } catch (InterruptedException e) {
         e.printStackTrace();
       }
-
-      // Flux.merge(Flux.interval(settings.rampUpDurationPerSupplier())
-      // .take(settings.rampUpAllDuration())
-      // .flatMap(i -> supplier.apply(self))
-      // .flatMap(supplier0 -> Flux.fromStream(LongStream.range(0, unitOfWorkNumber).boxed())
-      // .publishOn(scheduler)
-      // .map(i -> unitOfWork.apply(i, supplier0))
-      // .take(unitOfWorkDuration)
-      // .doFinally($ -> cleanUp.apply(supplier0).subscribe())))
-      // .blockLast();
-
     } finally {
       self.shutdown();
-    }
-  }
-
-  private class MyRunnable<T> implements Runnable {
-    private static final int NOT_STARTED = 0;
-    private static final int STARTED = 1;
-    private static final int SCHEDULED = 2;
-    private static final int ERROR = 3;
-    private static final int FINISH = 4;
-
-    // public static final ScheduledExecutorService EXECUTOR = Executors.newSingleThreadScheduledExecutor();
-
-    private final Function<SELF, Mono<T>> supplier;
-    private final BiFunction<Long, T, Publisher<?>> unitOfWork;
-
-    private final AtomicInteger state = new AtomicInteger();
-    private final AtomicReference<T> resultReference = new AtomicReference<>();
-    private final AtomicLong iterations = new AtomicLong();
-    private final Scheduler scheduler;
-
-    public MyRunnable(Function<SELF, Mono<T>> supplier,
-        BiFunction<Long, T, Publisher<?>> unitOfWork,
-        Scheduler scheduler) {
-
-      this.supplier = supplier;
-      this.unitOfWork = unitOfWork;
-      this.scheduler = scheduler;
-    }
-
-    @Override
-    public void run() {
-      if (state.compareAndSet(NOT_STARTED, STARTED)) { // started
-        // noinspection unchecked
-        Mono<T> supplierMono = supplier.apply((SELF) BenchmarksState.this);
-        supplierMono.subscribe(
-            result -> {
-              // netty epoll thread - 0
-              if (state.compareAndSet(STARTED, SCHEDULED)) { // scheduled
-                resultReference.set(result);
-                scheduler.schedule(this);
-                scheduler.schedule(() -> state.set(FINISH), settings.executionTaskTime().toMillis(),
-                    TimeUnit.MILLISECONDS);
-              }
-            },
-            throwable -> {
-              state.set(ERROR);
-            },
-            () -> {
-              // byte byte
-            });
-      }
-      if (state.get() == SCHEDULED) { // executing
-        long i = iterations.incrementAndGet();
-        T t = resultReference.get();
-
-        Flux.from(unitOfWork.apply(i, t))
-            .doOnError(ex -> {
-              state.set(ERROR);
-              ex.printStackTrace();
-            })
-            .subscribe();
-
-        scheduler.schedule(this, 0, TimeUnit.MILLISECONDS);
-      }
     }
   }
 }
