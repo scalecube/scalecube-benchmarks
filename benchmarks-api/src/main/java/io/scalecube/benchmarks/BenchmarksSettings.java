@@ -120,7 +120,7 @@ public class BenchmarksSettings {
   }
 
   private String minifyClassName(String className) {
-    return className.replaceAll("\\B\\w+(\\.[a-zA-Z])","$1");
+    return className.replaceAll("\\B\\w+(\\.[a-zA-Z])", "$1");
   }
 
   private String allPropertiesAsString() {
