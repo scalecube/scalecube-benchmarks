@@ -66,9 +66,14 @@ public class BenchmarksTask<SELF extends BenchmarksState<SELF>, T> implements Ru
 
     if (isScheduled()) { // executing
       long iter = iterationsCounter.incrementAndGet();
-      T res = supplierResultReference.get();
-      Flux.from(unitOfWork.apply(iter, res)).subscribe();
+      T res = supplierResultReference.get(); // not null here
+      Flux.from(unitOfWork.apply(iter, res))
+          .doOnError(ignore -> {
+            // no-op
+          })
+          .subscribe();
       scheduler.schedule(this);
+      return;
     }
 
     if (setStarted()) { // started
@@ -145,7 +150,7 @@ public class BenchmarksTask<SELF extends BenchmarksState<SELF>, T> implements Ru
         }
         voidMono.subscribe(
             aVoid -> setCompletedWithError(throwable),
-            throwable1 -> setCompletedWithError(throwable),
+            ex -> setCompletedWithError(throwable),
             () -> setCompletedWithError(throwable));
       } catch (Throwable ex) {
         setCompletedWithError(throwable);
