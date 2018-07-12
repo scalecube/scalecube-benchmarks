@@ -5,6 +5,7 @@ import static io.scalecube.benchmarks.BenchmarksTask.Status.COMPLETING;
 import static io.scalecube.benchmarks.BenchmarksTask.Status.SCHEDULED;
 import static io.scalecube.benchmarks.BenchmarksTask.Status.STARTED;
 
+import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Scheduler;
@@ -35,8 +36,9 @@ public class BenchmarksTask<SELF extends BenchmarksState<SELF>, T> implements Ru
 
   private final AtomicLong iterationsCounter = new AtomicLong();
   private final AtomicReference<Status> taskStatus = new AtomicReference<>();
-  private final AtomicReference<T> supplierResultReference = new AtomicReference<>();
+  private final AtomicReference<T> supplierResult = new AtomicReference<>();
   private final CompletableFuture<Void> taskCompletionFuture = new CompletableFuture<>();
+  private final AtomicReference<Disposable> scheduledCompletingTask = new AtomicReference<>();
 
   public BenchmarksTask(SELF benchmarksState,
       Function<SELF, Mono<T>> supplier,
@@ -66,7 +68,7 @@ public class BenchmarksTask<SELF extends BenchmarksState<SELF>, T> implements Ru
 
     if (isScheduled()) { // executing
       long iter = iterationsCounter.incrementAndGet();
-      T res = supplierResultReference.get(); // not null here
+      T res = supplierResult.get(); // not null here
       Flux.from(unitOfWork.apply(iter, res))
           .doOnError(ignore -> {
             // no-op
@@ -77,7 +79,8 @@ public class BenchmarksTask<SELF extends BenchmarksState<SELF>, T> implements Ru
     }
 
     if (setStarted()) { // started
-      scheduler.schedule(this::startCompleting, executionTaskTime.toMillis(), TimeUnit.MILLISECONDS);
+      scheduledCompletingTask
+          .set(scheduler.schedule(this::startCompleting, executionTaskTime.toMillis(), TimeUnit.MILLISECONDS));
 
       try {
         Mono<T> supplierMono = supplier.apply(benchmarksState);
@@ -91,7 +94,7 @@ public class BenchmarksTask<SELF extends BenchmarksState<SELF>, T> implements Ru
               if (res == null) { // wtf
                 startCompleting();
               } else if (setScheduled()) { // scheduled
-                supplierResultReference.set(res);
+                supplierResult.set(res);
                 scheduler.schedule(this);
               }
             });
@@ -103,12 +106,20 @@ public class BenchmarksTask<SELF extends BenchmarksState<SELF>, T> implements Ru
 
   private boolean setCompleted() {
     boolean compareAndSet = taskStatus.compareAndSet(COMPLETING, COMPLETED);
+    Disposable disposable = scheduledCompletingTask.get();
+    if (disposable != null) {
+      disposable.dispose();
+    }
     taskCompletionFuture.obtrudeValue(null);
     return compareAndSet;
   }
 
   private boolean setCompletedWithError(Throwable throwable) {
     boolean compareAndSet = taskStatus.compareAndSet(COMPLETING, COMPLETED);
+    Disposable disposable = scheduledCompletingTask.get();
+    if (disposable != null) {
+      disposable.dispose();
+    }
     taskCompletionFuture.obtrudeException(throwable);
     return compareAndSet;
   }
@@ -137,7 +148,7 @@ public class BenchmarksTask<SELF extends BenchmarksState<SELF>, T> implements Ru
 
   private void startCompletingWithError(Throwable throwable) {
     if (trySetCompleting()) {
-      T res = supplierResultReference.get();
+      T res = supplierResult.get();
       if (res == null) {
         setCompletedWithError(throwable);
         return;
@@ -160,7 +171,7 @@ public class BenchmarksTask<SELF extends BenchmarksState<SELF>, T> implements Ru
 
   private void startCompleting() {
     if (trySetCompleting()) {
-      T res = supplierResultReference.get();
+      T res = supplierResult.get();
       if (res == null) {
         setCompleted();
         return;
