@@ -17,7 +17,6 @@ import org.reactivestreams.Subscriber;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.time.Duration;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -79,14 +78,14 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
 
     consoleReporter = ConsoleReporter.forRegistry(settings.registry())
         .outputTo(System.out)
-        .convertDurationsTo(settings.durationUnit())
-        .convertRatesTo(settings.rateUnit())
+        .convertDurationsTo(settings.reporterDurationUnit())
+        .convertRatesTo(settings.reporterRateUnit())
         .build();
 
     csvReporter = CsvReporter.forRegistry(settings.registry())
-        .convertDurationsTo(settings.durationUnit())
-        .convertRatesTo(settings.rateUnit())
-        .build(settings.csvReporterDirectory());
+        .convertDurationsTo(settings.reporterDurationUnit())
+        .convertRatesTo(settings.reporterRateUnit())
+        .build(settings.reporterCsvDirectory());
 
     scheduler = Schedulers.fromExecutor(Executors.newFixedThreadPool(settings.nThreads()));
 
@@ -190,11 +189,11 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
 
       Function<Long, Object> unitOfWork = func.apply(self);
 
-      Flux<Long> fromStream = Flux.fromStream(LongStream.range(0, settings.numOfIterations()).boxed());
+      Flux<Long> fromStream = Flux.fromStream(LongStream.range(0, settings.tasksCount()).boxed());
 
       Flux.merge(fromStream.publishOn(scheduler())
           .map(unitOfWork))
-          .take(settings.executionTaskTime())
+          .take(settings.testDuration())
           .blockLast();
     } finally {
       self.shutdown();
@@ -222,11 +221,11 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
 
       Function<Long, Publisher<?>> unitOfWork = func.apply(self);
 
-      Flux<Long> fromStream = Flux.fromStream(LongStream.range(0, settings.numOfIterations()).boxed());
+      Flux<Long> fromStream = Flux.fromStream(LongStream.range(0, settings.tasksCount()).boxed());
 
       Flux.merge(fromStream.publishOn(scheduler())
           .map(unitOfWork))
-          .take(settings.executionTaskTime())
+          .take(settings.testDuration())
           .blockLast();
     } finally {
       self.shutdown();
@@ -259,16 +258,15 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
 
       BiFunction<Long, T, Publisher<?>> unitOfWork = func.apply(self);
 
-      long unitOfWorkNumber = settings.numOfIterations();
-      Duration unitOfWorkDuration = settings.executionTaskTime();
-
-      Flux.merge(Flux.interval(settings.rampUpDurationPerSupplier())
-          .take(settings.rampUpAllDuration())
+      Flux.merge(Flux.interval(settings.rampUpInterval())
+          .take(settings.rampUpIterations())
+          .take(settings.rampUpDuration())
           .flatMap(i -> supplier.apply(self))
-          .flatMap(supplier0 -> Flux.fromStream(LongStream.range(0, unitOfWorkNumber).boxed())
+          .flatMap(supplier0 -> Flux.interval(settings.taskInterval())
+              .take(settings.tasksCount())
               .publishOn(scheduler)
               .map(i -> unitOfWork.apply(i, supplier0))
-              .take(unitOfWorkDuration)
+              .take(settings.testDuration())
               .doFinally($ -> cleanUp.apply(supplier0).subscribe())))
           .blockLast();
     } finally {
