@@ -87,7 +87,7 @@ public class BenchmarksTask<SELF extends BenchmarksState<SELF>, T> implements Ru
           })
           .subscribe();
 
-      if (executionTaskInterval == null || executionTaskInterval.isZero()) {
+      if (executionTaskInterval.isZero()) {
         scheduler.schedule(this);
       } else {
         scheduler.schedule(this, executionTaskInterval.toMillis(), TimeUnit.MILLISECONDS);
@@ -102,16 +102,10 @@ public class BenchmarksTask<SELF extends BenchmarksState<SELF>, T> implements Ru
 
       try {
         Mono<T> supplierMono = supplier.apply(benchmarksState);
-        if (supplierMono == null) {
-          startCompleting();
-          return;
-        }
         supplierMono
             .doOnError(this::startCompletingWithError)
             .subscribe(res -> {
-              if (res == null) { // wtf
-                startCompleting();
-              } else if (setScheduled()) { // scheduled
+              if (setScheduled()) { // scheduled
                 supplierResult.set(res);
                 scheduler.schedule(this);
               }
@@ -177,10 +171,6 @@ public class BenchmarksTask<SELF extends BenchmarksState<SELF>, T> implements Ru
       }
       try {
         Mono<Void> voidMono = cleanUp.apply(res);
-        if (voidMono == null) {
-          setCompletedWithError(throwable);
-          return;
-        }
         voidMono.subscribe(
             aVoid -> setCompletedWithError(throwable),
             ex -> setCompletedWithError(throwable),
@@ -200,10 +190,6 @@ public class BenchmarksTask<SELF extends BenchmarksState<SELF>, T> implements Ru
       }
       try {
         Mono<Void> voidMono = cleanUp.apply(res);
-        if (voidMono == null) {
-          setCompleted();
-          return;
-        }
         voidMono.subscribe(
             aVoid -> setCompleted(),
             this::setCompletedWithError,
