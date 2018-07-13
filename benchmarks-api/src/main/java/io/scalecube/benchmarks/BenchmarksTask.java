@@ -41,6 +41,15 @@ public class BenchmarksTask<SELF extends BenchmarksState<SELF>, T> implements Ru
   private final CompletableFuture<Void> taskCompletionFuture = new CompletableFuture<>();
   private final AtomicReference<Disposable> scheduledCompletingTask = new AtomicReference<>();
 
+  /**
+   * Constructs benchmark task.
+   *
+   * @param benchmarksState a benchmark state
+   * @param supplier a function that should return some T type which one will be used in unitOfWork
+   * @param unitOfWork an unit of work
+   * @param cleanUp a function that should clean up some T's resources.
+   * @param scheduler a scheduler
+   */
   public BenchmarksTask(SELF benchmarksState,
       Function<SELF, Mono<T>> supplier,
       BiFunction<Long, T, Publisher<?>> unitOfWork,
