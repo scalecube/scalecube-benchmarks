@@ -92,7 +92,6 @@ public class BenchmarksTask<SELF extends BenchmarksState<SELF>, T> implements Ru
       } else {
         scheduler.schedule(this, executionTaskInterval.toMillis(), TimeUnit.MILLISECONDS);
       }
-
       return;
     }
 
