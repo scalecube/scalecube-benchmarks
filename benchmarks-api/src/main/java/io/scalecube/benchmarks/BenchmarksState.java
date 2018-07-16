@@ -17,6 +17,7 @@ import org.reactivestreams.Subscriber;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -255,7 +256,7 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
    * NOTICE: It's only for asynchronous code.
    * </p>
    *
-   * @param supplier a function that should return some T type which one will be passed into next to the argument. Also,
+   * @param setUp a function that should return some T type which one will be passed into next to the argument. Also,
    *        this function will be invoked with some ramp-up strategy, and when it will be invoked it will start
    *        executing the unitOfWork, which one specified as the second argument of this method.
    * @param func a function that should return the execution to be tested for the given SELF. This execution would run
@@ -265,7 +266,7 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
    * @param cleanUp a function that should clean up some T's resources.
    */
   public final <T> void runForAsync(
-      Function<SELF, Mono<T>> supplier,
+      Function<SELF, Publisher<T>> setUp,
       Function<SELF, BiFunction<Long, T, Publisher<?>>> func,
       Function<T, Mono<Void>> cleanUp) {
 
@@ -275,19 +276,28 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
     try {
       self.start();
 
+      long numOfIterations = self.settings.numOfIterations();
+      Duration executionTaskDuration = self.settings.executionTaskDuration();
+      Duration executionTaskInterval = self.settings.executionTaskInterval();
+
       BiFunction<Long, T, Publisher<?>> unitOfWork = func.apply(self);
 
       Flux.interval(settings.rampUpInterval())
           .take(settings.rampUpDuration())
           .flatMap(rampUpIteration -> {
-            // select scheduler and bind a task to it
+
+            // select scheduler and bind tasks to it
             int schedulerIndex = (int) ((rampUpIteration & Long.MAX_VALUE) % schedulers().size());
             Scheduler scheduler = schedulers().get(schedulerIndex);
-            // create a task on selected scheduler
-            BenchmarksTask<SELF, T> benchmarksTask =
-                new BenchmarksTask<>(self, supplier, unitOfWork, cleanUp, scheduler);
-            scheduler.schedule(benchmarksTask);
-            return benchmarksTask.completionMono();
+
+            // create tasks on selected scheduler
+            return Flux.defer(() -> setUp.apply(self))
+                .subscribeOn(scheduler)
+                .map(setUpResult -> new BenchmarksTask<>(setUpResult, unitOfWork, cleanUp, scheduler, numOfIterations,
+                    executionTaskDuration, executionTaskInterval))
+                .doOnNext(scheduler::schedule)
+                .flatMap(BenchmarksTask::completionMono);
+
           }, Integer.MAX_VALUE, Integer.MAX_VALUE)
           .blockLast();
     } finally {

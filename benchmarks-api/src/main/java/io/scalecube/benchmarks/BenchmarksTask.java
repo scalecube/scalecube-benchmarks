@@ -3,7 +3,6 @@ package io.scalecube.benchmarks;
 import static io.scalecube.benchmarks.BenchmarksTask.Status.COMPLETED;
 import static io.scalecube.benchmarks.BenchmarksTask.Status.COMPLETING;
 import static io.scalecube.benchmarks.BenchmarksTask.Status.SCHEDULED;
-import static io.scalecube.benchmarks.BenchmarksTask.Status.STARTED;
 
 import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
@@ -22,16 +21,15 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
-public class BenchmarksTask<SELF extends BenchmarksState<SELF>, T> implements Runnable {
+public class BenchmarksTask<T> implements Runnable {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(BenchmarksTask.class);
 
   public enum Status {
-    STARTED, SCHEDULED, COMPLETING, COMPLETED
+    SCHEDULED, COMPLETING, COMPLETED
   }
 
-  private final SELF benchmarksState;
-  private final Function<SELF, Mono<T>> setUp;
+  private final T setUpResult;
   private final BiFunction<Long, T, Publisher<?>> unitOfWork;
   private final Function<T, Mono<Void>> cleanUp;
   private final long numOfIterations;
@@ -41,33 +39,35 @@ public class BenchmarksTask<SELF extends BenchmarksState<SELF>, T> implements Ru
 
   private final AtomicLong iterationsCounter = new AtomicLong();
   private final AtomicReference<Status> taskStatus = new AtomicReference<>();
-  private final AtomicReference<T> setUpResult = new AtomicReference<>();
   private final CompletableFuture<Void> taskCompletionFuture = new CompletableFuture<>();
   private final AtomicReference<Disposable> scheduledCompletingTask = new AtomicReference<>();
 
   /**
    * Constructs benchmark task.
-   *
-   * @param benchmarksState a benchmark state
-   * @param setUp a function that should return some T type which one will be used in unitOfWork
-   * @param unitOfWork an unit of work
+   * 
+   * @param setUpResult a result of setUp function.
+   * @param unitOfWork an unit of work.
    * @param cleanUp a function that should clean up some T's resources.
-   * @param scheduler a scheduler
+   * @param scheduler a scheduler.
+   * @param numOfIterations a number of iterations to run.
+   * @param executionTaskDuration an execution task total duration.
+   * @param executionTaskInterval an interval at which execute unitOfWork function.
    */
-  public BenchmarksTask(SELF benchmarksState,
-      Function<SELF, Mono<T>> setUp,
+  public BenchmarksTask(T setUpResult,
       BiFunction<Long, T, Publisher<?>> unitOfWork,
       Function<T, Mono<Void>> cleanUp,
-      Scheduler scheduler) {
+      Scheduler scheduler,
+      long numOfIterations,
+      Duration executionTaskDuration,
+      Duration executionTaskInterval) {
 
-    this.benchmarksState = benchmarksState;
-    this.setUp = setUp;
+    this.setUpResult = setUpResult;
     this.unitOfWork = unitOfWork;
     this.cleanUp = cleanUp;
     this.scheduler = scheduler;
-    this.numOfIterations = benchmarksState.settings.numOfIterations();
-    this.executionTaskDuration = benchmarksState.settings.executionTaskDuration();
-    this.executionTaskInterval = benchmarksState.settings.executionTaskInterval();
+    this.numOfIterations = numOfIterations;
+    this.executionTaskDuration = executionTaskDuration;
+    this.executionTaskInterval = executionTaskInterval;
   }
 
   @Override
@@ -84,9 +84,8 @@ public class BenchmarksTask<SELF extends BenchmarksState<SELF>, T> implements Ru
 
     if (isScheduled()) { // executing
       long iter = iterationsCounter.incrementAndGet();
-      T res = setUpResult.get(); // not null here
 
-      Flux.from(unitOfWork.apply(iter, res))
+      Flux.from(unitOfWork.apply(iter, setUpResult))
           .doOnError(ex -> LOGGER.warn("Exception occured on unitOfWork at iteration: {}, cause: {}", iter, ex))
           .subscribe();
 
@@ -98,31 +97,15 @@ public class BenchmarksTask<SELF extends BenchmarksState<SELF>, T> implements Ru
       return;
     }
 
-    if (setStarted()) { // started
+    if (setScheduled()) { // scheduled
       scheduledCompletingTask
           .set(scheduler.schedule(() -> {
             LOGGER.debug("Task is completing due to execution duration limit: " + executionTaskDuration.toMillis());
             startCompleting();
           }, executionTaskDuration.toMillis(), TimeUnit.MILLISECONDS));
 
-      try {
-        Mono<T> supplierMono = setUp.apply(benchmarksState);
-        supplierMono
-            .doOnError(ex -> {
-              LOGGER.error("Exception occured on setUp, cause: {}, now starting to complete", ex);
-              startCompletingWithError(ex);
-            })
-            .subscribe(res -> {
-              if (setScheduled()) { // scheduled
-                LOGGER.debug("Obtained setUp result: {}, now scheduling", res);
-                setUpResult.set(res);
-                scheduler.schedule(this);
-              }
-            });
-      } catch (Throwable ex) {
-        LOGGER.error("Exception occured on setUp, cause: {}, now starting to complete", ex);
-        startCompletingWithError(ex);
-      }
+      LOGGER.debug("Obtained setUp result: {}, now scheduling", setUpResult);
+      scheduler.schedule(this);
     }
   }
 
@@ -152,18 +135,12 @@ public class BenchmarksTask<SELF extends BenchmarksState<SELF>, T> implements Ru
     return compareAndSet;
   }
 
-  private boolean setStarted() {
-    return taskStatus.compareAndSet(null, STARTED);
-  }
-
   private boolean setScheduled() {
-    return taskStatus.compareAndSet(STARTED, SCHEDULED);
+    return taskStatus.compareAndSet(null, SCHEDULED);
   }
 
   private boolean trySetCompleting() {
-    return taskStatus.compareAndSet(null, COMPLETING)
-        || taskStatus.compareAndSet(STARTED, COMPLETING)
-        || taskStatus.compareAndSet(SCHEDULED, COMPLETING);
+    return taskStatus.compareAndSet(null, COMPLETING) || taskStatus.compareAndSet(SCHEDULED, COMPLETING);
   }
 
   private boolean isCompleted() {
@@ -174,38 +151,10 @@ public class BenchmarksTask<SELF extends BenchmarksState<SELF>, T> implements Ru
     return taskStatus.get() == SCHEDULED;
   }
 
-  private void startCompletingWithError(Throwable throwable) {
-    if (trySetCompleting()) {
-      T res = setUpResult.get();
-      if (res == null) {
-        setCompletedWithError(throwable);
-        return;
-      }
-      try {
-        Mono<Void> voidMono = cleanUp.apply(res);
-        voidMono.subscribe(
-            aVoid -> setCompletedWithError(throwable),
-            ex -> {
-              LOGGER.error("Exception occured on cleanUp, cause: {}", ex);
-              setCompletedWithError(throwable);
-            },
-            () -> setCompletedWithError(throwable));
-      } catch (Throwable ex) {
-        LOGGER.error("Exception occured on cleanUp, cause: {}", ex);
-        setCompletedWithError(throwable);
-      }
-    }
-  }
-
   private void startCompleting() {
     if (trySetCompleting()) {
-      T res = setUpResult.get();
-      if (res == null) {
-        setCompleted();
-        return;
-      }
       try {
-        Mono<Void> voidMono = cleanUp.apply(res);
+        Mono<Void> voidMono = cleanUp.apply(setUpResult);
         voidMono.subscribe(
             aVoid -> setCompleted(),
             ex -> {
