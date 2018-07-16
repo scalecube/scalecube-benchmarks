@@ -11,6 +11,8 @@ import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Scheduler;
 
 import org.reactivestreams.Publisher;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
@@ -22,12 +24,14 @@ import java.util.function.Function;
 
 public class BenchmarksTask<SELF extends BenchmarksState<SELF>, T> implements Runnable {
 
+  private static final Logger LOGGER = LoggerFactory.getLogger(BenchmarksTask.class);
+
   public enum Status {
     STARTED, SCHEDULED, COMPLETING, COMPLETED
   }
 
   private final SELF benchmarksState;
-  private final Function<SELF, Mono<T>> supplier;
+  private final Function<SELF, Mono<T>> setUp;
   private final BiFunction<Long, T, Publisher<?>> unitOfWork;
   private final Function<T, Mono<Void>> cleanUp;
   private final long numOfIterations;
@@ -37,7 +41,7 @@ public class BenchmarksTask<SELF extends BenchmarksState<SELF>, T> implements Ru
 
   private final AtomicLong iterationsCounter = new AtomicLong();
   private final AtomicReference<Status> taskStatus = new AtomicReference<>();
-  private final AtomicReference<T> supplierResult = new AtomicReference<>();
+  private final AtomicReference<T> setUpResult = new AtomicReference<>();
   private final CompletableFuture<Void> taskCompletionFuture = new CompletableFuture<>();
   private final AtomicReference<Disposable> scheduledCompletingTask = new AtomicReference<>();
 
@@ -45,19 +49,19 @@ public class BenchmarksTask<SELF extends BenchmarksState<SELF>, T> implements Ru
    * Constructs benchmark task.
    *
    * @param benchmarksState a benchmark state
-   * @param supplier a function that should return some T type which one will be used in unitOfWork
+   * @param setUp a function that should return some T type which one will be used in unitOfWork
    * @param unitOfWork an unit of work
    * @param cleanUp a function that should clean up some T's resources.
    * @param scheduler a scheduler
    */
   public BenchmarksTask(SELF benchmarksState,
-      Function<SELF, Mono<T>> supplier,
+      Function<SELF, Mono<T>> setUp,
       BiFunction<Long, T, Publisher<?>> unitOfWork,
       Function<T, Mono<Void>> cleanUp,
       Scheduler scheduler) {
 
     this.benchmarksState = benchmarksState;
-    this.supplier = supplier;
+    this.setUp = setUp;
     this.unitOfWork = unitOfWork;
     this.cleanUp = cleanUp;
     this.scheduler = scheduler;
@@ -73,18 +77,17 @@ public class BenchmarksTask<SELF extends BenchmarksState<SELF>, T> implements Ru
     }
 
     if (iterationsCounter.get() >= numOfIterations) {
+      LOGGER.debug("Task is completed due to iterations limit: " + numOfIterations);
       startCompleting();
       return; // this is the end
     }
 
     if (isScheduled()) { // executing
       long iter = iterationsCounter.incrementAndGet();
-      T res = supplierResult.get(); // not null here
+      T res = setUpResult.get(); // not null here
 
       Flux.from(unitOfWork.apply(iter, res))
-          .doOnError(ignore -> {
-            // no-op
-          })
+          .doOnError(ex -> LOGGER.warn("Exception occured on unitOfWork at iteration: {}, cause: {}", iter, ex))
           .subscribe();
 
       if (executionTaskInterval.isZero()) {
@@ -97,19 +100,27 @@ public class BenchmarksTask<SELF extends BenchmarksState<SELF>, T> implements Ru
 
     if (setStarted()) { // started
       scheduledCompletingTask
-          .set(scheduler.schedule(this::startCompleting, executionTaskDuration.toMillis(), TimeUnit.MILLISECONDS));
+          .set(scheduler.schedule(() -> {
+            LOGGER.debug("Task is completing due to execution duration limit: " + executionTaskDuration.toMillis());
+            startCompleting();
+          }, executionTaskDuration.toMillis(), TimeUnit.MILLISECONDS));
 
       try {
-        Mono<T> supplierMono = supplier.apply(benchmarksState);
+        Mono<T> supplierMono = setUp.apply(benchmarksState);
         supplierMono
-            .doOnError(this::startCompletingWithError)
+            .doOnError(ex -> {
+              LOGGER.error("Exception occured on setUp, cause: {}, now starting to complete", ex);
+              startCompletingWithError(ex);
+            })
             .subscribe(res -> {
               if (setScheduled()) { // scheduled
-                supplierResult.set(res);
+                LOGGER.debug("Obtained setUp result: {}, now scheduling", res);
+                setUpResult.set(res);
                 scheduler.schedule(this);
               }
             });
       } catch (Throwable ex) {
+        LOGGER.error("Exception occured on setUp, cause: {}, now starting to complete", ex);
         startCompletingWithError(ex);
       }
     }
@@ -120,21 +131,23 @@ public class BenchmarksTask<SELF extends BenchmarksState<SELF>, T> implements Ru
   }
 
   private boolean setCompleted() {
-    boolean compareAndSet = taskStatus.compareAndSet(COMPLETING, COMPLETED);
+    final boolean compareAndSet = taskStatus.compareAndSet(COMPLETING, COMPLETED);
     Disposable disposable = scheduledCompletingTask.get();
     if (disposable != null) {
       disposable.dispose();
     }
+    LOGGER.error("Task is completed");
     taskCompletionFuture.obtrudeValue(null);
     return compareAndSet;
   }
 
   private boolean setCompletedWithError(Throwable throwable) {
-    boolean compareAndSet = taskStatus.compareAndSet(COMPLETING, COMPLETED);
+    final boolean compareAndSet = taskStatus.compareAndSet(COMPLETING, COMPLETED);
     Disposable disposable = scheduledCompletingTask.get();
     if (disposable != null) {
       disposable.dispose();
     }
+    LOGGER.error("Task is completed with error: {}", throwable);
     taskCompletionFuture.obtrudeException(throwable);
     return compareAndSet;
   }
@@ -163,7 +176,7 @@ public class BenchmarksTask<SELF extends BenchmarksState<SELF>, T> implements Ru
 
   private void startCompletingWithError(Throwable throwable) {
     if (trySetCompleting()) {
-      T res = supplierResult.get();
+      T res = setUpResult.get();
       if (res == null) {
         setCompletedWithError(throwable);
         return;
@@ -172,9 +185,13 @@ public class BenchmarksTask<SELF extends BenchmarksState<SELF>, T> implements Ru
         Mono<Void> voidMono = cleanUp.apply(res);
         voidMono.subscribe(
             aVoid -> setCompletedWithError(throwable),
-            ex -> setCompletedWithError(throwable),
+            ex -> {
+              LOGGER.error("Exception occured on cleanUp, cause: {}", ex);
+              setCompletedWithError(throwable);
+            },
             () -> setCompletedWithError(throwable));
       } catch (Throwable ex) {
+        LOGGER.error("Exception occured on cleanUp, cause: {}", ex);
         setCompletedWithError(throwable);
       }
     }
@@ -182,7 +199,7 @@ public class BenchmarksTask<SELF extends BenchmarksState<SELF>, T> implements Ru
 
   private void startCompleting() {
     if (trySetCompleting()) {
-      T res = supplierResult.get();
+      T res = setUpResult.get();
       if (res == null) {
         setCompleted();
         return;
@@ -191,9 +208,13 @@ public class BenchmarksTask<SELF extends BenchmarksState<SELF>, T> implements Ru
         Mono<Void> voidMono = cleanUp.apply(res);
         voidMono.subscribe(
             aVoid -> setCompleted(),
-            this::setCompletedWithError,
+            ex -> {
+              LOGGER.error("Exception occured on cleanUp, cause: {}", ex);
+              setCompletedWithError(ex);
+            },
             this::setCompleted);
       } catch (Throwable ex) {
+        LOGGER.error("Exception occured on cleanUp, cause: {}", ex);
         setCompletedWithError(ex);
       }
     }
