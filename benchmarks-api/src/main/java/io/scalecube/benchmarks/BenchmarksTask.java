@@ -11,6 +11,8 @@ import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Scheduler;
 
 import org.reactivestreams.Publisher;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
@@ -21,6 +23,8 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 
 public class BenchmarksTask<SELF extends BenchmarksState<SELF>, T> implements Runnable {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(BenchmarksTask.class);
 
   public enum Status {
     STARTED, SCHEDULED, COMPLETING, COMPLETED
@@ -73,6 +77,7 @@ public class BenchmarksTask<SELF extends BenchmarksState<SELF>, T> implements Ru
     }
 
     if (iterationsCounter.get() >= numOfIterations) {
+      LOGGER.debug("Task is completed due to iterations limit: " + numOfIterations);
       startCompleting();
       return; // this is the end
     }
@@ -82,9 +87,7 @@ public class BenchmarksTask<SELF extends BenchmarksState<SELF>, T> implements Ru
       T res = setUpResult.get(); // not null here
 
       Flux.from(unitOfWork.apply(iter, res))
-          .doOnError(ignore -> {
-            // no-op
-          })
+          .doOnError(ex -> LOGGER.warn("Exception occured on unitOfWork at iteration: {}, cause: {}", iter, ex))
           .subscribe();
 
       if (executionTaskInterval.isZero()) {
@@ -97,19 +100,27 @@ public class BenchmarksTask<SELF extends BenchmarksState<SELF>, T> implements Ru
 
     if (setStarted()) { // started
       scheduledCompletingTask
-          .set(scheduler.schedule(this::startCompleting, executionTaskDuration.toMillis(), TimeUnit.MILLISECONDS));
+          .set(scheduler.schedule(() -> {
+            LOGGER.debug("Task is completing due to execution duration limit: " + executionTaskDuration.toMillis());
+            startCompleting();
+          }, executionTaskDuration.toMillis(), TimeUnit.MILLISECONDS));
 
       try {
         Mono<T> supplierMono = setUp.apply(benchmarksState);
         supplierMono
-            .doOnError(this::startCompletingWithError)
+            .doOnError(ex -> {
+              LOGGER.error("Exception occured on setUp, cause: {}, now starting to complete", ex);
+              startCompletingWithError(ex);
+            })
             .subscribe(res -> {
               if (setScheduled()) { // scheduled
+                LOGGER.debug("Obtained setUp result: {}, now scheduling", res);
                 setUpResult.set(res);
                 scheduler.schedule(this);
               }
             });
       } catch (Throwable ex) {
+        LOGGER.error("Exception occured on setUp, cause: {}, now starting to complete", ex);
         startCompletingWithError(ex);
       }
     }
@@ -125,6 +136,7 @@ public class BenchmarksTask<SELF extends BenchmarksState<SELF>, T> implements Ru
     if (disposable != null) {
       disposable.dispose();
     }
+    LOGGER.error("Task is completed");
     taskCompletionFuture.obtrudeValue(null);
     return compareAndSet;
   }
@@ -135,6 +147,7 @@ public class BenchmarksTask<SELF extends BenchmarksState<SELF>, T> implements Ru
     if (disposable != null) {
       disposable.dispose();
     }
+    LOGGER.error("Task is completed with error: {}", throwable);
     taskCompletionFuture.obtrudeException(throwable);
     return compareAndSet;
   }
@@ -172,9 +185,13 @@ public class BenchmarksTask<SELF extends BenchmarksState<SELF>, T> implements Ru
         Mono<Void> voidMono = cleanUp.apply(res);
         voidMono.subscribe(
             aVoid -> setCompletedWithError(throwable),
-            ex -> setCompletedWithError(throwable),
+            ex -> {
+              LOGGER.error("Exception occured on cleanUp, cause: {}", ex);
+              setCompletedWithError(throwable);
+            },
             () -> setCompletedWithError(throwable));
       } catch (Throwable ex) {
+        LOGGER.error("Exception occured on cleanUp, cause: {}", ex);
         setCompletedWithError(throwable);
       }
     }
@@ -191,9 +208,13 @@ public class BenchmarksTask<SELF extends BenchmarksState<SELF>, T> implements Ru
         Mono<Void> voidMono = cleanUp.apply(res);
         voidMono.subscribe(
             aVoid -> setCompleted(),
-            this::setCompletedWithError,
+            ex -> {
+              LOGGER.error("Exception occured on cleanUp, cause: {}", ex);
+              setCompletedWithError(ex);
+            },
             this::setCompleted);
       } catch (Throwable ex) {
+        LOGGER.error("Exception occured on cleanUp, cause: {}", ex);
         setCompletedWithError(ex);
       }
     }
