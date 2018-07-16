@@ -27,7 +27,7 @@ public class BenchmarksTask<SELF extends BenchmarksState<SELF>, T> implements Ru
   }
 
   private final SELF benchmarksState;
-  private final Function<SELF, Mono<T>> supplier;
+  private final Function<SELF, Mono<T>> setUp;
   private final BiFunction<Long, T, Publisher<?>> unitOfWork;
   private final Function<T, Mono<Void>> cleanUp;
   private final long numOfIterations;
@@ -37,7 +37,7 @@ public class BenchmarksTask<SELF extends BenchmarksState<SELF>, T> implements Ru
 
   private final AtomicLong iterationsCounter = new AtomicLong();
   private final AtomicReference<Status> taskStatus = new AtomicReference<>();
-  private final AtomicReference<T> supplierResult = new AtomicReference<>();
+  private final AtomicReference<T> setUpResult = new AtomicReference<>();
   private final CompletableFuture<Void> taskCompletionFuture = new CompletableFuture<>();
   private final AtomicReference<Disposable> scheduledCompletingTask = new AtomicReference<>();
 
@@ -45,19 +45,19 @@ public class BenchmarksTask<SELF extends BenchmarksState<SELF>, T> implements Ru
    * Constructs benchmark task.
    *
    * @param benchmarksState a benchmark state
-   * @param supplier a function that should return some T type which one will be used in unitOfWork
+   * @param setUp a function that should return some T type which one will be used in unitOfWork
    * @param unitOfWork an unit of work
    * @param cleanUp a function that should clean up some T's resources.
    * @param scheduler a scheduler
    */
   public BenchmarksTask(SELF benchmarksState,
-      Function<SELF, Mono<T>> supplier,
+      Function<SELF, Mono<T>> setUp,
       BiFunction<Long, T, Publisher<?>> unitOfWork,
       Function<T, Mono<Void>> cleanUp,
       Scheduler scheduler) {
 
     this.benchmarksState = benchmarksState;
-    this.supplier = supplier;
+    this.setUp = setUp;
     this.unitOfWork = unitOfWork;
     this.cleanUp = cleanUp;
     this.scheduler = scheduler;
@@ -79,7 +79,7 @@ public class BenchmarksTask<SELF extends BenchmarksState<SELF>, T> implements Ru
 
     if (isScheduled()) { // executing
       long iter = iterationsCounter.incrementAndGet();
-      T res = supplierResult.get(); // not null here
+      T res = setUpResult.get(); // not null here
 
       Flux.from(unitOfWork.apply(iter, res))
           .doOnError(ignore -> {
@@ -100,12 +100,12 @@ public class BenchmarksTask<SELF extends BenchmarksState<SELF>, T> implements Ru
           .set(scheduler.schedule(this::startCompleting, executionTaskDuration.toMillis(), TimeUnit.MILLISECONDS));
 
       try {
-        Mono<T> supplierMono = supplier.apply(benchmarksState);
+        Mono<T> supplierMono = setUp.apply(benchmarksState);
         supplierMono
             .doOnError(this::startCompletingWithError)
             .subscribe(res -> {
               if (setScheduled()) { // scheduled
-                supplierResult.set(res);
+                setUpResult.set(res);
                 scheduler.schedule(this);
               }
             });
@@ -163,7 +163,7 @@ public class BenchmarksTask<SELF extends BenchmarksState<SELF>, T> implements Ru
 
   private void startCompletingWithError(Throwable throwable) {
     if (trySetCompleting()) {
-      T res = supplierResult.get();
+      T res = setUpResult.get();
       if (res == null) {
         setCompletedWithError(throwable);
         return;
@@ -182,7 +182,7 @@ public class BenchmarksTask<SELF extends BenchmarksState<SELF>, T> implements Ru
 
   private void startCompleting() {
     if (trySetCompleting()) {
-      T res = supplierResult.get();
+      T res = setUpResult.get();
       if (res == null) {
         setCompleted();
         return;
