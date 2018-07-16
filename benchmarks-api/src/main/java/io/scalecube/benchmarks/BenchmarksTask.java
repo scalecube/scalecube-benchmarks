@@ -131,7 +131,7 @@ public class BenchmarksTask<SELF extends BenchmarksState<SELF>, T> implements Ru
   }
 
   private boolean setCompleted() {
-    boolean compareAndSet = taskStatus.compareAndSet(COMPLETING, COMPLETED);
+    final boolean compareAndSet = taskStatus.compareAndSet(COMPLETING, COMPLETED);
     Disposable disposable = scheduledCompletingTask.get();
     if (disposable != null) {
       disposable.dispose();
@@ -142,7 +142,7 @@ public class BenchmarksTask<SELF extends BenchmarksState<SELF>, T> implements Ru
   }
 
   private boolean setCompletedWithError(Throwable throwable) {
-    boolean compareAndSet = taskStatus.compareAndSet(COMPLETING, COMPLETED);
+    final boolean compareAndSet = taskStatus.compareAndSet(COMPLETING, COMPLETED);
     Disposable disposable = scheduledCompletingTask.get();
     if (disposable != null) {
       disposable.dispose();
