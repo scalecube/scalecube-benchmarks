@@ -136,7 +136,7 @@ public class BenchmarksTask<SELF extends BenchmarksState<SELF>, T> implements Ru
     if (disposable != null) {
       disposable.dispose();
     }
-    LOGGER.error("Task is completed");
+    LOGGER.debug("Task is completed");
     taskCompletionFuture.obtrudeValue(null);
     return compareAndSet;
   }
