@@ -288,7 +288,7 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
                 new BenchmarksTask<>(self, supplier, unitOfWork, cleanUp, scheduler);
             scheduler.schedule(benchmarksTask);
             return benchmarksTask.completionMono();
-          })
+          }, Integer.MAX_VALUE, Integer.MAX_VALUE)
           .blockLast();
     } finally {
       self.shutdown();
