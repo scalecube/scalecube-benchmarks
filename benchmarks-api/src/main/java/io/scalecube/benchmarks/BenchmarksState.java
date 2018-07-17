@@ -17,7 +17,6 @@ import org.reactivestreams.Subscriber;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -268,17 +267,13 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
   public final <T> void runForAsync(
       Function<SELF, Publisher<T>> setUp,
       Function<SELF, BiFunction<Long, T, Publisher<?>>> func,
-      Function<T, Mono<Void>> cleanUp) {
+      BiFunction<SELF, T, Mono<Void>> cleanUp) {
 
     // noinspection unchecked
     @SuppressWarnings("unchecked")
     SELF self = (SELF) this;
     try {
       self.start();
-
-      long numOfIterations = self.settings.numOfIterations();
-      Duration executionTaskDuration = self.settings.executionTaskDuration();
-      Duration executionTaskInterval = self.settings.executionTaskInterval();
 
       BiFunction<Long, T, Publisher<?>> unitOfWork = func.apply(self);
 
@@ -293,8 +288,7 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
             // create tasks on selected scheduler
             return Flux.defer(() -> setUp.apply(self))
                 .subscribeOn(scheduler)
-                .map(setUpResult -> new BenchmarksTask<>(setUpResult, unitOfWork, cleanUp, scheduler, numOfIterations,
-                    executionTaskDuration, executionTaskInterval))
+                .map(setUpResult -> new BenchmarksTask<>(self, setUpResult, unitOfWork, cleanUp, scheduler))
                 .doOnNext(scheduler::schedule)
                 .flatMap(BenchmarksTask::completionMono);
 

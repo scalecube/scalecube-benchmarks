@@ -19,9 +19,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
-import java.util.function.Function;
 
-public class BenchmarksTask<T> implements Runnable {
+public class BenchmarksTask<SELF extends BenchmarksState<SELF>, T> implements Runnable {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(BenchmarksTask.class);
 
@@ -29,9 +28,10 @@ public class BenchmarksTask<T> implements Runnable {
     SCHEDULED, COMPLETING, COMPLETED
   }
 
+  private final SELF benchmarksState;
   private final T setUpResult;
   private final BiFunction<Long, T, Publisher<?>> unitOfWork;
-  private final Function<T, Mono<Void>> cleanUp;
+  private final BiFunction<SELF, T, Mono<Void>> cleanUp;
   private final long numOfIterations;
   private final Duration executionTaskDuration;
   private final Duration executionTaskInterval;
@@ -49,25 +49,21 @@ public class BenchmarksTask<T> implements Runnable {
    * @param unitOfWork an unit of work.
    * @param cleanUp a function that should clean up some T's resources.
    * @param scheduler a scheduler.
-   * @param numOfIterations a number of iterations to run.
-   * @param executionTaskDuration an execution task total duration.
-   * @param executionTaskInterval an interval at which execute unitOfWork function.
    */
-  public BenchmarksTask(T setUpResult,
+  public BenchmarksTask(SELF benchmarksState,
+      T setUpResult,
       BiFunction<Long, T, Publisher<?>> unitOfWork,
-      Function<T, Mono<Void>> cleanUp,
-      Scheduler scheduler,
-      long numOfIterations,
-      Duration executionTaskDuration,
-      Duration executionTaskInterval) {
+      BiFunction<SELF, T, Mono<Void>> cleanUp,
+      Scheduler scheduler) {
 
+    this.benchmarksState = benchmarksState;
     this.setUpResult = setUpResult;
     this.unitOfWork = unitOfWork;
     this.cleanUp = cleanUp;
     this.scheduler = scheduler;
-    this.numOfIterations = numOfIterations;
-    this.executionTaskDuration = executionTaskDuration;
-    this.executionTaskInterval = executionTaskInterval;
+    this.numOfIterations = benchmarksState.settings.numOfIterations();
+    this.executionTaskDuration = benchmarksState.settings.executionTaskDuration();
+    this.executionTaskInterval = benchmarksState.settings.executionTaskInterval();
   }
 
   @Override
@@ -154,7 +150,7 @@ public class BenchmarksTask<T> implements Runnable {
   private void startCompleting() {
     if (trySetCompleting()) {
       try {
-        Mono<Void> voidMono = cleanUp.apply(setUpResult);
+        Mono<Void> voidMono = cleanUp.apply(benchmarksState, setUpResult);
         voidMono.subscribe(
             aVoid -> setCompleted(),
             ex -> {

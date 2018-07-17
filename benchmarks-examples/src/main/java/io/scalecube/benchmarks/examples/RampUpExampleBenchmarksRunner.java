@@ -34,7 +34,7 @@ public class RampUpExampleBenchmarksRunner {
             return serviceCaller.call("hello").doOnTerminate(timeContext::stop);
           };
         },
-        ServiceCaller::close);
+        (state, serviceCaller) -> serviceCaller.close());
   }
 
   private static class ServiceCaller {
