@@ -3,7 +3,7 @@ Microbenchmarks framework
 
 ## Download
 
-```
+```xml
 <dependency>
   <groupId>io.scalecube</groupId>
   <artifactId>scalecube-benchmarks-api</artifactId>
@@ -15,7 +15,7 @@ Microbenchmarks framework
 
 First, you need to create the settings which will be used while test is running. You can use the builder for it:
 
-```
+```java
 public static void main(String[] args) {
   BenchmarksSettings settings = BenchmarksSettings.from(args)
     .nThreads(2)
@@ -29,7 +29,7 @@ As you see, you could want to override some default settings with the command li
 
 The second point is you need to prepare some state for your test scenario. You can define how to launch your server, launch some client or just execute some work before running test scenario. For instance, you can create a separated class to reduce writing your scenario in a test or reuse the same state in different scenarios.
 
-```
+```java
 public class ExampleServiceBenchmarksState extends BenchmarksState<ExampleServiceBenchmarksState> {
 
   private ExampleService exampleService;
@@ -52,11 +52,13 @@ You can override two methods: `beforeAll` and `afterAll`, these methods will be 
 
 ### runForSync
 
-```void runForSync(Function<SELF, Function<Long, Object>> func)```
+```java
+void runForSync(Function<SELF, Function<Long, Object>> func)
+```
 
 This method intends for execution synchronous tasks. It receives a function, that should return the execution to be tested for the given the state. For instance:
 
-```
+```java
 public static void main(String[] args) {
     BenchmarksSettings settings = ...;
     new RouterBenchmarksState(settings).runForSync(state -> {
@@ -78,11 +80,13 @@ As you see, to use this method you need return some function, to generate one yo
 
 ### runForAsync
 
-```void runForAsync(Function<SELF, Function<Long, Publisher<?>>> func)```
+```java
+void runForAsync(Function<SELF, Function<Long, Publisher<?>>> func)
+```
 
 This method intends for execution asynchronous tasks. It receives a function, that should return the execution to be tested for the given the state. Note, the unitOfwork should return some `Publisher`. For instance:
 
-```
+```java
   public static void main(String[] args) {
     BenchmarksSettings settings = ...;
     new ExampleServiceBenchmarksState(settings).runForAsync(state -> {
@@ -102,7 +106,7 @@ As you see, to use this method you need return some function, to generate one yo
 
 ### runWithRampUp
 
-```
+```java
 <T> void runWithRampUp(BiFunction<Long, SELF, Publisher<T>> setUp,
                        Function<SELF, BiFunction<Long, T, Publisher<?>>> func,
                        BiFunction<SELF, T, Mono<Void>> cleanUp)
@@ -110,7 +114,7 @@ As you see, to use this method you need return some function, to generate one yo
 
 This method intends for execution asynchronous tasks with consumption some resources via ramp-up strategy. It receives three functions, they are necessary to provide all resource life-cycle. The first function is like resource supplier, to implement this one you have access to the active state and a ramp-up iteration's number. And when ramp-up strategy asks for new resources it will be invoked. The second function is like unitOfWork supplier, to implement this one you receive the active state (to take some services or metric's tools), iteration's number and a resource, that was created on the former step. And the last function is like clean-up supplier, that knows how to need release given resource. For instance:
 
-```
+```java
   public static void main(String[] args) {
     BenchmarksSettings settings = ...;
 
