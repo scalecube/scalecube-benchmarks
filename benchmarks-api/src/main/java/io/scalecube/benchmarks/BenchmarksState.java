@@ -7,7 +7,6 @@ import com.codahale.metrics.Meter;
 import com.codahale.metrics.Timer;
 import com.codahale.metrics.jvm.MemoryUsageGaugeSet;
 
-import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
@@ -290,7 +289,7 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
             // create tasks on selected scheduler
             Flux<T> setUpFactory = Flux.create((FluxSink<T> sink) -> {
               Flux<T> deferSetUp = Flux.defer(() -> setUp.apply(rampUpIteration, self));
-              Disposable disposable = deferSetUp.subscribe(
+              deferSetUp.subscribe(
                   sink::next,
                   ex -> {
                     LOGGER.error("Exception occured on setUp at rampUpIteration: {}, "
@@ -298,9 +297,7 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
                     sink.complete();
                   },
                   sink::complete);
-              sink.onDispose(disposable);
             });
-
             return setUpFactory
                 .subscribeOn(scheduler)
                 .map(setUpResult -> new BenchmarksTask<>(self, setUpResult, unitOfWork, cleanUp, scheduler))
