@@ -5,7 +5,6 @@ import io.scalecube.benchmarks.BenchmarksSettings;
 import com.codahale.metrics.Timer;
 
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
 
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
@@ -35,22 +34,5 @@ public class RampUpExampleBenchmarksRunner {
           };
         },
         (state, serviceCaller) -> serviceCaller.close());
-  }
-
-  private static class ServiceCaller {
-
-    private final ExampleService service;
-
-    public ServiceCaller(ExampleService service) {
-      this.service = service;
-    }
-
-    public Mono<String> call(String request) {
-      return service.invoke(request);
-    }
-
-    public Mono<Void> close() {
-      return Mono.defer(Mono::empty);
-    }
   }
 }
