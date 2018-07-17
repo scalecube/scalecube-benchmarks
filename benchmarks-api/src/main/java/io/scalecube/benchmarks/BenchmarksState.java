@@ -288,8 +288,8 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
             // create tasks on selected scheduler
             return Flux.defer(() -> setUp.apply(self))
                 .subscribeOn(scheduler)
-                .doOnError(ex -> LOGGER.error("Exception occured on setUp at " +
-                    "rampUpIteration: {}, cause: {}, task won't start", rampUpIteration, ex))
+                .doOnError(ex -> LOGGER.error("Exception occured on setUp at "
+                    + "rampUpIteration: {}, cause: {}, task won't start", rampUpIteration, ex))
                 .map(setUpResult -> new BenchmarksTask<>(self, setUpResult, unitOfWork, cleanUp, scheduler))
                 .doOnNext(scheduler::schedule)
                 .flatMap(BenchmarksTask::completionMono);
