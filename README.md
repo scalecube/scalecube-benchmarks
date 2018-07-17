@@ -13,7 +13,7 @@ Microbenchmarks framework
 
 ## Getting started
 
-First, you need to create the settings which will be used while test running. You can use the builder for it:
+First, you need to create the settings which will be used while test is running. You can use the builder for it:
 
 ```
 public static void main(String[] args) {
@@ -54,7 +54,7 @@ You can override two methods: `beforeAll` and `afterAll`, these methods will be 
 
 ```void runForSync(Function<SELF, Function<Long, Object>> func)```
 
-This method intends for execution synchronous tasks. It receives a function, which one should return the execution to be tested for the given the state. For instance:
+This method intends for execution synchronous tasks. It receives a function, that should return the execution to be tested for the given the state. For instance:
 
 ```
 public static void main(String[] args) {
@@ -80,7 +80,7 @@ As you see, to use this method you need return some function, to generate one yo
 
 ```void runForAsync(Function<SELF, Function<Long, Publisher<?>>> func)```
 
-This method intends for execution asynchronous tasks. It receives a function, which one should return the execution to be tested for the given the state. Note, the unitOfwork should return some `Publisher`. For instance:
+This method intends for execution asynchronous tasks. It receives a function, that should return the execution to be tested for the given the state. Note, the unitOfwork should return some `Publisher`. For instance:
 
 ```
   public static void main(String[] args) {
@@ -108,7 +108,7 @@ As you see, to use this method you need return some function, to generate one yo
                        BiFunction<SELF, T, Mono<Void>> cleanUp)
 ```
 
-This method intends for execution asynchronous tasks with consumption some resources via ramp-up strategy. It receives three function, they are necessary to provide all resource life-cycle. The first function is like resource supplier, to implement this one you have access to the active state and a ramp-up iteration's number. And when ramp-up strategy asks for new resources it will be invoked. The second function is like unitOfWork supplier, to implement this one you receive the active state (to take some services or metric's tools), iteration's number and a resource, which one was created on the former step. And the last function is like clean-up supplier, which one knows how to need release given resource. For instance:
+This method intends for execution asynchronous tasks with consumption some resources via ramp-up strategy. It receives three function, they are necessary to provide all resource life-cycle. The first function is like resource supplier, to implement this one you have access to the active state and a ramp-up iteration's number. And when ramp-up strategy asks for new resources it will be invoked. The second function is like unitOfWork supplier, to implement this one you receive the active state (to take some services or metric's tools), iteration's number and a resource, that was created on the former step. And the last function is like clean-up supplier, that knows how to need release given resource. For instance:
 
 ```
   public static void main(String[] args) {
