@@ -4,12 +4,12 @@ import io.scalecube.benchmarks.BenchmarksSettings;
 
 import com.codahale.metrics.Timer;
 
-import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 
-public class RampUpExampleBenchmarksRunner {
+public class RampUpExampleFailingSetUpRunner {
 
   /**
    * Runs example benchmark.
@@ -25,7 +25,13 @@ public class RampUpExampleBenchmarksRunner {
         .build();
 
     new ExampleServiceBenchmarksState(settings).runForAsync(
-        (rampUpIteration, state) -> Flux.range(1, 3).map(i -> new ServiceCaller(state.exampleService())),
+        (rampUpIteration, state) -> {
+          if (rampUpIteration > 1) {
+            return Mono.error(new RuntimeException("Exception instead of setUp result"));
+          } else {
+            return Mono.just(new ServiceCaller(state.exampleService()));
+          }
+        },
         state -> {
           Timer timer = state.timer("timer");
           return (iteration, serviceCaller) -> {
