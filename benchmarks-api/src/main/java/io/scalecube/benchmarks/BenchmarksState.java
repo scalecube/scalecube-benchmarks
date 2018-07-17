@@ -8,6 +8,7 @@ import com.codahale.metrics.Timer;
 import com.codahale.metrics.jvm.MemoryUsageGaugeSet;
 
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
@@ -265,7 +266,8 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
    *        for termination.
    * @param cleanUp a function that should clean up some T's resources.
    */
-  public final <T> void runWithRampUp(Function<SELF, Publisher<T>> setUp,
+  public final <T> void runWithRampUp(
+      BiFunction<Long, SELF, Publisher<T>> setUp,
       Function<SELF, BiFunction<Long, T, Publisher<?>>> func,
       BiFunction<SELF, T, Mono<Void>> cleanUp) {
 
@@ -286,10 +288,19 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
             Scheduler scheduler = schedulers().get(schedulerIndex);
 
             // create tasks on selected scheduler
-            return Flux.defer(() -> setUp.apply(self))
+            Flux<T> setUpFactory = Flux.create((FluxSink<T> sink) -> {
+              Flux<T> deferSetUp = Flux.defer(() -> setUp.apply(rampUpIteration, self));
+              deferSetUp.subscribe(
+                  sink::next,
+                  ex -> {
+                    LOGGER.error("Exception occured on setUp at rampUpIteration: {}, "
+                        + "cause: {}, task won't start", rampUpIteration, ex);
+                    sink.complete();
+                  },
+                  sink::complete);
+            });
+            return setUpFactory
                 .subscribeOn(scheduler)
-                .doOnError(ex -> LOGGER.error("Exception occured on setUp at "
-                    + "rampUpIteration: {}, cause: {}, task won't start", rampUpIteration, ex))
                 .map(setUpResult -> new BenchmarksTask<>(self, setUpResult, unitOfWork, cleanUp, scheduler))
                 .doOnNext(scheduler::schedule)
                 .flatMap(BenchmarksTask::completionMono);
