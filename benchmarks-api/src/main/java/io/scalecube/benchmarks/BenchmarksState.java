@@ -241,7 +241,8 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
 
       Flux<Long> fromStream = Flux.fromStream(LongStream.range(0, settings.numOfIterations()).boxed());
 
-      Flux.merge(fromStream.publishOn(scheduler()).map(unitOfWork))
+      Flux.merge(fromStream
+          .publishOn(scheduler()).map(unitOfWork))
           .take(settings.executionTaskDuration())
           .blockLast();
     } finally {
@@ -265,7 +266,7 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
    *        for termination.
    * @param cleanUp a function that should clean up some T's resources.
    */
-  public final <T> void runForAsync(
+  public final <T> void runWithRampUp(
       BiFunction<Long, SELF, Publisher<T>> setUp,
       Function<SELF, BiFunction<Long, T, Publisher<?>>> func,
       BiFunction<SELF, T, Mono<Void>> cleanUp) {

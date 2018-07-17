@@ -24,7 +24,7 @@ public class RampUpExampleBenchmarksRunner {
         .durationUnit(TimeUnit.NANOSECONDS)
         .build();
 
-    new ExampleServiceBenchmarksState(settings).runForAsync(
+    new ExampleServiceBenchmarksState(settings).runWithRampUp(
         (rampUpIteration, state) -> Flux.range(1, 3).map(i -> new ServiceCaller(state.exampleService())),
         state -> {
           Timer timer = state.timer("timer");
