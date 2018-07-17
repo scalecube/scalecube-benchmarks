@@ -40,10 +40,6 @@ public class TestOnSubscribe {
                 .take(singleScenarioDuration),
             tearDown);
 
-    // Mono<Double> underTest = Mono
-    // .defer(() -> Mono.just(heavy()));
-
-
     Flux.interval(injectUsersInterval)
         .take(users)
         .flatMap(user -> scenario)
