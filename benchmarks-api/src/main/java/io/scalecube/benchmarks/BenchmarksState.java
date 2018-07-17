@@ -8,6 +8,7 @@ import com.codahale.metrics.Timer;
 import com.codahale.metrics.jvm.MemoryUsageGaugeSet;
 
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
@@ -240,7 +241,8 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
 
       Flux<Long> fromStream = Flux.fromStream(LongStream.range(0, settings.numOfIterations()).boxed());
 
-      Flux.merge(fromStream.publishOn(scheduler()).map(unitOfWork))
+      Flux.merge(fromStream
+          .publishOn(scheduler()).map(unitOfWork))
           .take(settings.executionTaskDuration())
           .blockLast();
     } finally {
@@ -255,7 +257,7 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
    * NOTICE: It's only for asynchronous code.
    * </p>
    *
-   * @param supplier a function that should return some T type which one will be passed into next to the argument. Also,
+   * @param setUp a function that should return some T type which one will be passed into next to the argument. Also,
    *        this function will be invoked with some ramp-up strategy, and when it will be invoked it will start
    *        executing the unitOfWork, which one specified as the second argument of this method.
    * @param func a function that should return the execution to be tested for the given SELF. This execution would run
@@ -264,10 +266,10 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
    *        for termination.
    * @param cleanUp a function that should clean up some T's resources.
    */
-  public final <T> void runForAsync(
-      Function<SELF, Mono<T>> supplier,
+  public final <T> void runWithRampUp(
+      BiFunction<Long, SELF, Publisher<T>> setUp,
       Function<SELF, BiFunction<Long, T, Publisher<?>>> func,
-      Function<T, Mono<Void>> cleanUp) {
+      BiFunction<SELF, T, Mono<Void>> cleanUp) {
 
     // noinspection unchecked
     @SuppressWarnings("unchecked")
@@ -280,14 +282,29 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
       Flux.interval(settings.rampUpInterval())
           .take(settings.rampUpDuration())
           .flatMap(rampUpIteration -> {
-            // select scheduler and bind a task to it
+
+            // select scheduler and bind tasks to it
             int schedulerIndex = (int) ((rampUpIteration & Long.MAX_VALUE) % schedulers().size());
             Scheduler scheduler = schedulers().get(schedulerIndex);
-            // create a task on selected scheduler
-            BenchmarksTask<SELF, T> benchmarksTask =
-                new BenchmarksTask<>(self, supplier, unitOfWork, cleanUp, scheduler);
-            scheduler.schedule(benchmarksTask);
-            return benchmarksTask.completionMono();
+
+            // create tasks on selected scheduler
+            Flux<T> setUpFactory = Flux.create((FluxSink<T> sink) -> {
+              Flux<T> deferSetUp = Flux.defer(() -> setUp.apply(rampUpIteration, self));
+              deferSetUp.subscribe(
+                  sink::next,
+                  ex -> {
+                    LOGGER.error("Exception occured on setUp at rampUpIteration: {}, "
+                        + "cause: {}, task won't start", rampUpIteration, ex);
+                    sink.complete();
+                  },
+                  sink::complete);
+            });
+            return setUpFactory
+                .subscribeOn(scheduler)
+                .map(setUpResult -> new BenchmarksTask<>(self, setUpResult, unitOfWork, cleanUp, scheduler))
+                .doOnNext(scheduler::schedule)
+                .flatMap(BenchmarksTask::completionMono);
+
           }, Integer.MAX_VALUE, Integer.MAX_VALUE)
           .blockLast();
     } finally {
