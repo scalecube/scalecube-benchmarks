@@ -24,7 +24,7 @@ public class RampUpExampleFailingSetUpRunner {
         .durationUnit(TimeUnit.NANOSECONDS)
         .build();
 
-    new ExampleServiceBenchmarksState(settings).runForAsync(
+    new ExampleServiceBenchmarksState(settings).runWithRampUp(
         (rampUpIteration, state) -> {
           if (rampUpIteration > 1) {
             return Mono.error(new RuntimeException("Exception instead of setUp result"));
