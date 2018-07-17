@@ -18,7 +18,9 @@ import org.reactivestreams.Subscriber;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Duration;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -207,12 +209,18 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
 
       Function<Long, Object> unitOfWork = func.apply(self);
 
-      Flux<Long> fromStream = Flux.fromStream(LongStream.range(0, settings.numOfIterations()).boxed());
+      CountDownLatch latch = new CountDownLatch(1);
 
-      Flux.merge(fromStream
-          .publishOn(scheduler()).map(unitOfWork))
-          .take(settings.executionTaskDuration())
-          .blockLast();
+      Flux.fromStream(LongStream.range(0, settings.numOfIterations()).boxed())
+          .parallel()
+          .runOn(scheduler())
+          .map(unitOfWork)
+          .doOnTerminate(latch::countDown)
+          .subscribe();
+
+      latch.await(settings.executionTaskDuration().toMillis(), TimeUnit.MILLISECONDS);
+    } catch (InterruptedException e) {
+      e.printStackTrace();
     } finally {
       self.shutdown();
     }
@@ -239,12 +247,18 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
 
       Function<Long, Publisher<?>> unitOfWork = func.apply(self);
 
-      Flux<Long> fromStream = Flux.fromStream(LongStream.range(0, settings.numOfIterations()).boxed());
+      CountDownLatch latch = new CountDownLatch(1);
 
-      Flux.merge(fromStream
-          .publishOn(scheduler()).map(unitOfWork))
-          .take(settings.executionTaskDuration())
-          .blockLast();
+      Flux.fromStream(LongStream.range(0, settings.numOfIterations()).boxed())
+          .parallel()
+          .runOn(scheduler())
+          .flatMap(unitOfWork)
+          .doOnTerminate(latch::countDown)
+          .subscribe();
+
+      latch.await(settings.executionTaskDuration().toMillis(), TimeUnit.MILLISECONDS);
+    } catch (InterruptedException e) {
+      e.printStackTrace();
     } finally {
       self.shutdown();
     }
@@ -279,7 +293,7 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
 
       BiFunction<Long, T, Publisher<?>> unitOfWork = func.apply(self);
 
-      Flux.interval(settings.rampUpInterval())
+      Flux.interval(Duration.ZERO, settings.rampUpInterval())
           .take(settings.rampUpDuration())
           .flatMap(rampUpIteration -> {
 
