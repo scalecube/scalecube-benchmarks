@@ -108,7 +108,7 @@ As you see, to use this method you need return some function, to generate one yo
                        BiFunction<SELF, T, Mono<Void>> cleanUp)
 ```
 
-This method intends for execution asynchronous tasks with consumption some resources via ramp-up strategy. It receives three function, they are necessary to provide all resource life-cycle. The first function is like resource supplier, to implement this one you have access to the active state and a ramp-up iteration's number. And when ramp-up strategy asks for new resources it will be invoked. The second function is like unitOfWork supplier, to implement this one you receive the active state (to take some services or metric's tools), iteration's number and a resource, that was created on the former step. And the last function is like clean-up supplier, that knows how to need release given resource. For instance:
+This method intends for execution asynchronous tasks with consumption some resources via ramp-up strategy. It receives three functions, they are necessary to provide all resource life-cycle. The first function is like resource supplier, to implement this one you have access to the active state and a ramp-up iteration's number. And when ramp-up strategy asks for new resources it will be invoked. The second function is like unitOfWork supplier, to implement this one you receive the active state (to take some services or metric's tools), iteration's number and a resource, that was created on the former step. And the last function is like clean-up supplier, that knows how to need release given resource. For instance:
 
 ```
   public static void main(String[] args) {
