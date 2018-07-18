@@ -11,7 +11,6 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
 
 public class BenchmarksSettings {
@@ -25,6 +24,7 @@ public class BenchmarksSettings {
   private static final long NUM_OF_ITERATIONS = Long.MAX_VALUE;
   private static final Duration RAMP_UP_DURATION = Duration.ofSeconds(10);
   private static final Duration RAMP_UP_INTERVAL = Duration.ofSeconds(1);
+  private static final String ALIAS = "alias";
 
   private final int nThreads;
   private final Duration executionTaskDuration;
@@ -66,8 +66,8 @@ public class BenchmarksSettings {
     this.taskName = minifyClassName(stackTrace[stackTrace.length - 1].getClassName());
 
     String time = LocalDateTime.ofInstant(Instant.now(), ZoneOffset.UTC)
-        .format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"));
-    this.csvReporterDirectory = Paths.get("benchmarks", "results", taskName + allPropertiesAsString(), time).toFile();
+        .format(DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm-ss"));
+    this.csvReporterDirectory = Paths.get("benchmarks", "results", find(ALIAS, taskName), time).toFile();
     // noinspection ResultOfMethodCallIgnored
     this.csvReporterDirectory.mkdirs();
   }
@@ -146,21 +146,6 @@ public class BenchmarksSettings {
 
   private String minifyClassName(String className) {
     return className.replaceAll("\\B\\w+(\\.[a-zA-Z])", "$1");
-  }
-
-  private String allPropertiesAsString() {
-    Map<String, String> allProperties = new TreeMap<>(options);
-    allProperties.put("nThreads", String.valueOf(nThreads));
-    allProperties.put("executionTaskDuration", String.valueOf(executionTaskDuration));
-    allProperties.put("executionTaskInterval", String.valueOf(executionTaskInterval));
-    allProperties.put("numOfIterations", String.valueOf(numOfIterations));
-    allProperties.put("rampUpDuration", String.valueOf(rampUpDuration));
-    allProperties.put("rampUpInterval", String.valueOf(rampUpInterval));
-    StringBuilder sb = new StringBuilder();
-    for (Map.Entry<String, String> entry : allProperties.entrySet()) {
-      sb.append("_").append(entry.getKey()).append("=").append(entry.getValue());
-    }
-    return sb.toString();
   }
 
   public static class Builder {
