@@ -5,7 +5,11 @@ import reactor.core.publisher.Mono;
 public class ExampleService {
 
   public Mono<String> invoke(String request) {
-    return Mono.defer(() -> Mono.just(request + hardTask()));
+    return Mono.defer(() -> Mono.just(syncInvoke(request)));
+  }
+
+  public String syncInvoke(String request) {
+    return request + hardTask();
   }
 
   private Double hardTask() {
