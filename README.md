@@ -116,7 +116,12 @@ This method intends for execution asynchronous tasks with consumption some resou
 
 ```java
   public static void main(String[] args) {
-    BenchmarksSettings settings = ...;
+    BenchmarksSettings settings = BenchmarksSettings.from(args)
+        .rampUpDuration(Duration.ofSeconds(10))
+        .rampUpInterval(Duration.ofSeconds(1))
+        .executionTaskDuration(Duration.ofSeconds(30))
+        .executionTaskInterval(Duration.ofMillis(100))
+        .build();
 
     new ExampleServiceBenchmarksState(settings).runWithRampUp(
         (rampUpIteration, state) -> Mono.just(new ServiceCaller(state.exampleService()),
@@ -127,3 +132,5 @@ This method intends for execution asynchronous tasks with consumption some resou
         (state, serviceCaller) -> serviceCaller.close());
   }
 ```
+
+It's time to describe the settings in more detail. First, you can see two ramp-up parameters, these are `rampUpDuration` and `rampUpInterval`. They need to specify how long will be processing ramp-up stage and how often will be invoked the resource supplier to receive a new resource. Also, we have two parameters to specify how long will be processing all `unitOfWork`s on the one resource (`executionTaskDuration`) and with another one you can specify some interval that will be applied to invoke the next `unitOfWork` on the one resource (`executionTaskInterval`).
