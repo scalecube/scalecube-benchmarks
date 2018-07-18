@@ -7,6 +7,7 @@ import com.codahale.metrics.Meter;
 import com.codahale.metrics.Timer;
 import com.codahale.metrics.jvm.MemoryUsageGaugeSet;
 
+import reactor.core.Exceptions;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
@@ -220,7 +221,7 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
 
       latch.await(settings.executionTaskDuration().toMillis(), TimeUnit.MILLISECONDS);
     } catch (InterruptedException e) {
-      e.printStackTrace();
+      throw Exceptions.propagate(e);
     } finally {
       self.shutdown();
     }
@@ -247,18 +248,12 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
 
       Function<Long, Publisher<?>> unitOfWork = func.apply(self);
 
-      CountDownLatch latch = new CountDownLatch(1);
+      Flux<Long> fromStream = Flux.fromStream(LongStream.range(0, settings.numOfIterations()).boxed());
 
-      Flux.fromStream(LongStream.range(0, settings.numOfIterations()).boxed())
-          .parallel()
-          .runOn(scheduler())
-          .flatMap(unitOfWork)
-          .doOnTerminate(latch::countDown)
-          .subscribe();
-
-      latch.await(settings.executionTaskDuration().toMillis(), TimeUnit.MILLISECONDS);
-    } catch (InterruptedException e) {
-      e.printStackTrace();
+      Flux.merge(fromStream
+          .publishOn(scheduler()).map(unitOfWork))
+          .take(settings.executionTaskDuration())
+          .blockLast();
     } finally {
       self.shutdown();
     }
