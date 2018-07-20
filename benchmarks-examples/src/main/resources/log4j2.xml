@@ -8,32 +8,34 @@
   <Appenders>
 
     <Routing name="separateBenchmarkLogs">
-      <Routes pattern="$${ctx:benchmarkDir}_$${ctx:benchmarkName}">
-        <!-- This route is chosen if ThreadContext has values for keys: benchmarkDir, benchmarkName. -->
+      <Routes pattern="$${ctx:benchmarkDir}">
+        <!-- This route is chosen if ThreadContext has values for keys: benchmarkDir -->
         <Route>
-          <RollingFile name="Rolling-${ctx:benchmarkDir}-${ctx:benchmarkName}"
-                       fileName="${ctx:benchmarkDir}/${ctx:benchmarkName}.log"
-                       filePattern="${ctx:benchmarkDir}/${ctx:benchmarkName}-%d{yyyy-MM-dd-HH}.log">
+          <RollingFile name="Rolling-${ctx:benchmarkDir}"
+                       fileName="${ctx:benchmarkDir}/benchmarks.log"
+                       filePattern="${ctx:benchmarkDir}/benchmarks-%d{yyyy-MM-dd-HH}-%i.log.zip"
+                       ignoreExceptions="false">
             <PatternLayout pattern="${patternLayout}"/>
             <Policies>
-              <OnStartupTriggeringPolicy/>
               <TimeBasedTriggeringPolicy/>
-              <SizeBasedTriggeringPolicy size="50 MB"/>
+              <SizeBasedTriggeringPolicy size="50MB"/>
             </Policies>
+            <DefaultRolloverStrategy max="1000"/>
           </RollingFile>
         </Route>
 
-        <!-- This route is chosen if ThreadContext has no value for keys: benchmarkDir, benchmarkName. -->
-        <Route key="$${ctx:benchmarkDir}_$${ctx:benchmarkName}">
+        <!-- This route is chosen if ThreadContext has no value for keys: benchmarkDir -->
+        <Route key="$${ctx:benchmarkDir}">
           <RollingFile name="Rolling-default"
                        fileName="benchmarks/default.log"
-                       filePattern="benchmarks/default-%d{yyyy-MM-dd-HH}.log">
+                       filePattern="benchmarks/default-%d{yyyy-MM-dd-HH}-%i.log.zip"
+                       ignoreExceptions="false">
             <PatternLayout pattern="${patternLayout}"/>
             <Policies>
-              <OnStartupTriggeringPolicy/>
               <TimeBasedTriggeringPolicy/>
-              <SizeBasedTriggeringPolicy size="50 MB"/>
+              <SizeBasedTriggeringPolicy size="50MB"/>
             </Policies>
+            <DefaultRolloverStrategy max="1000"/>
           </RollingFile>
         </Route>
 
