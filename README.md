@@ -134,3 +134,6 @@ This method intends for execution asynchronous tasks with consumption some resou
 ```
 
 It's time to describe the settings in more detail. First, you can see two ramp-up parameters, these are `rampUpDuration` and `rampUpInterval`. They need to specify how long will be processing ramp-up stage and how often will be invoked the resource supplier to receive a new resource. Also, we have two parameters to specify how long will be processing all `unitOfWork`s on the given resource (`executionTaskDuration`) and with another one you can specify some interval that will be applied to invoke the next `unitOfWork` on the given resource (`executionTaskInterval`).
+
+## Additional links
+ + [How-to-launch-benchmarks](https://github.com/scalecube/scalecube-benchmarks/wiki/How-to-launch-benchmarks)
