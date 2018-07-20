@@ -4,16 +4,48 @@
   <Properties>
     <Property name="patternLayout">%level{length=1} %d{ISO8601} %c{1.} %m [%t]%n</Property>
   </Properties>
+
   <Appenders>
-    <Console name="STDOUT" target="SYSTEM_OUT">
-      <PatternLayout pattern="${patternLayout}"/>
-    </Console>
+
+    <Routing name="separateBenchmarkLogs">
+      <Routes pattern="$${ctx:benchmarkDir}">
+        <!-- This route is chosen if ThreadContext has values for keys: benchmarkDir -->
+        <Route>
+          <RollingFile name="Rolling-${ctx:benchmarkDir}"
+                       fileName="${ctx:benchmarkDir}/benchmarks.log"
+                       filePattern="${ctx:benchmarkDir}/benchmarks-%d{yyyy-MM-dd-HH}-%i.log.zip"
+                       ignoreExceptions="false">
+            <PatternLayout pattern="${patternLayout}"/>
+            <Policies>
+              <TimeBasedTriggeringPolicy/>
+              <SizeBasedTriggeringPolicy size="50MB"/>
+            </Policies>
+            <DefaultRolloverStrategy max="1000"/>
+          </RollingFile>
+        </Route>
+
+        <!-- This route is chosen if ThreadContext has no value for keys: benchmarkDir -->
+        <Route key="$${ctx:benchmarkDir}">
+          <RollingFile name="Rolling-default"
+                       fileName="benchmarks/default.log"
+                       filePattern="benchmarks/default-%d{yyyy-MM-dd-HH}-%i.log.zip"
+                       ignoreExceptions="false">
+            <PatternLayout pattern="${patternLayout}"/>
+            <Policies>
+              <TimeBasedTriggeringPolicy/>
+              <SizeBasedTriggeringPolicy size="50MB"/>
+            </Policies>
+            <DefaultRolloverStrategy max="1000"/>
+          </RollingFile>
+        </Route>
+
+      </Routes>
+    </Routing>
   </Appenders>
 
   <Loggers>
-    <Logger name="io.scalecube.config" level="error"/>
-    <Root level="debug">
-      <AppenderRef ref="STDOUT"/>
+    <Root level="${env:logLevel:-info}">
+      <AppenderRef ref="separateBenchmarkLogs"/>
     </Root>
   </Loggers>
 

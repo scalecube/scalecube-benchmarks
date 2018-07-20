@@ -11,7 +11,6 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
 
 public class BenchmarksSettings {
@@ -25,6 +24,7 @@ public class BenchmarksSettings {
   private static final long NUM_OF_ITERATIONS = Long.MAX_VALUE;
   private static final Duration RAMP_UP_DURATION = Duration.ofSeconds(10);
   private static final Duration RAMP_UP_INTERVAL = Duration.ofSeconds(1);
+  private static final boolean CONSOLE_REPORTER_ENABLED = true;
 
   private final int nThreads;
   private final Duration executionTaskDuration;
@@ -38,6 +38,7 @@ public class BenchmarksSettings {
   private final long numOfIterations;
   private final Duration rampUpDuration;
   private final Duration rampUpInterval;
+  private final boolean consoleReporterEnabled;
 
   private final Map<String, String> options;
 
@@ -51,23 +52,21 @@ public class BenchmarksSettings {
     this.executionTaskInterval = builder.executionTaskInterval;
     this.reporterInterval = builder.reporterInterval;
     this.numOfIterations = builder.numOfIterations;
-
+    this.consoleReporterEnabled = builder.consoleReporterEnabled;
     this.rampUpDuration = builder.rampUpDuration;
     this.rampUpInterval = builder.rampUpInterval;
-
     this.options = builder.options;
-
-    this.registry = new MetricRegistry();
-
     this.durationUnit = builder.durationUnit;
     this.rateUnit = builder.rateUnit;
+
+    this.registry = new MetricRegistry();
 
     StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
     this.taskName = minifyClassName(stackTrace[stackTrace.length - 1].getClassName());
 
     String time = LocalDateTime.ofInstant(Instant.now(), ZoneOffset.UTC)
-        .format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"));
-    this.csvReporterDirectory = Paths.get("benchmarks", "results", taskName + allPropertiesAsString(), time).toFile();
+        .format(DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm-ss"));
+    this.csvReporterDirectory = Paths.get("benchmarks", "results", find("alias", taskName), time).toFile();
     // noinspection ResultOfMethodCallIgnored
     this.csvReporterDirectory.mkdirs();
   }
@@ -124,6 +123,10 @@ public class BenchmarksSettings {
     return rampUpInterval;
   }
 
+  public boolean consoleReporterEnabled() {
+    return consoleReporterEnabled;
+  }
+
   @Override
   public String toString() {
     final StringBuilder sb = new StringBuilder("BenchmarksSettings{");
@@ -138,6 +141,7 @@ public class BenchmarksSettings {
     sb.append(", rateUnit=").append(rateUnit);
     sb.append(", rampUpDuration=").append(rampUpDuration);
     sb.append(", rampUpInterval=").append(rampUpInterval);
+    sb.append(", consoleReporterEnabled=").append(consoleReporterEnabled);
     sb.append(", registry=").append(registry);
     sb.append(", options=").append(options);
     sb.append('}');
@@ -146,21 +150,6 @@ public class BenchmarksSettings {
 
   private String minifyClassName(String className) {
     return className.replaceAll("\\B\\w+(\\.[a-zA-Z])", "$1");
-  }
-
-  private String allPropertiesAsString() {
-    Map<String, String> allProperties = new TreeMap<>(options);
-    allProperties.put("nThreads", String.valueOf(nThreads));
-    allProperties.put("executionTaskDuration", String.valueOf(executionTaskDuration));
-    allProperties.put("executionTaskInterval", String.valueOf(executionTaskInterval));
-    allProperties.put("numOfIterations", String.valueOf(numOfIterations));
-    allProperties.put("rampUpDuration", String.valueOf(rampUpDuration));
-    allProperties.put("rampUpInterval", String.valueOf(rampUpInterval));
-    StringBuilder sb = new StringBuilder();
-    for (Map.Entry<String, String> entry : allProperties.entrySet()) {
-      sb.append("_").append(entry.getKey()).append("=").append(entry.getValue());
-    }
-    return sb.toString();
   }
 
   public static class Builder {
@@ -175,6 +164,7 @@ public class BenchmarksSettings {
     private long numOfIterations = NUM_OF_ITERATIONS;
     private Duration rampUpDuration = RAMP_UP_DURATION;
     private Duration rampUpInterval = RAMP_UP_INTERVAL;
+    private boolean consoleReporterEnabled = CONSOLE_REPORTER_ENABLED;
 
     public Builder from(String[] args) {
       this.parse(args);
@@ -233,6 +223,11 @@ public class BenchmarksSettings {
       return this;
     }
 
+    public Builder consoleReporterEnabled(boolean consoleReporterEnabled) {
+      this.consoleReporterEnabled = consoleReporterEnabled;
+      return this;
+    }
+
     public BenchmarksSettings build() {
       return new BenchmarksSettings(this);
     }
@@ -264,6 +259,9 @@ public class BenchmarksSettings {
               break;
             case "rampUpIntervalInMillis":
               rampUpInterval(Duration.ofMillis(Long.parseLong(value)));
+              break;
+            case "consoleReporterEnabled":
+              consoleReporterEnabled(Boolean.parseBoolean(value));
               break;
             default:
               addOption(key, value);

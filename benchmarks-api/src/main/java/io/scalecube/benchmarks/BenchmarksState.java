@@ -7,6 +7,7 @@ import com.codahale.metrics.Meter;
 import com.codahale.metrics.Timer;
 import com.codahale.metrics.jvm.MemoryUsageGaugeSet;
 
+import reactor.core.Exceptions;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
@@ -17,9 +18,14 @@ import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 
+import java.time.Duration;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiFunction;
@@ -48,10 +54,12 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(BenchmarksState.class);
 
+  private static final String MDC_BENCHMARK_DIR = "benchmarkDir";
+
   protected final BenchmarksSettings settings;
 
-  protected Scheduler scheduler;
-  protected List<Scheduler> schedulers;
+  private Scheduler scheduler;
+  private List<Scheduler> schedulers;
 
   private ConsoleReporter consoleReporter;
   private CsvReporter csvReporter;
@@ -78,25 +86,31 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
       throw new IllegalStateException("BenchmarksState is already started");
     }
 
+    MDC.put(MDC_BENCHMARK_DIR, settings.csvReporterDirectory().toString());
+
     LOGGER.info("Benchmarks settings: " + settings);
 
     settings.registry().register(settings.taskName() + "-memory", new MemoryUsageGaugeSet());
 
-    consoleReporter = ConsoleReporter.forRegistry(settings.registry())
-        .outputTo(System.out)
-        .convertDurationsTo(settings.durationUnit())
-        .convertRatesTo(settings.rateUnit())
-        .build();
+    if (settings.consoleReporterEnabled()) {
+      consoleReporter = ConsoleReporter.forRegistry(settings.registry())
+          .outputTo(System.out)
+          .convertDurationsTo(settings.durationUnit())
+          .convertRatesTo(settings.rateUnit())
+          .build();
+    }
 
     csvReporter = CsvReporter.forRegistry(settings.registry())
         .convertDurationsTo(settings.durationUnit())
         .convertRatesTo(settings.rateUnit())
         .build(settings.csvReporterDirectory());
 
-    scheduler = Schedulers.fromExecutor(Executors.newFixedThreadPool(settings.nThreads()));
+    scheduler = Schedulers.fromExecutor(
+        Executors.newFixedThreadPool(settings.nThreads(), newThreadFactory()));
 
     schedulers = IntStream.rangeClosed(1, settings.nThreads())
-        .mapToObj(i -> Schedulers.fromExecutorService(Executors.newSingleThreadScheduledExecutor()))
+        .mapToObj(i -> Schedulers.fromExecutorService(
+            Executors.newSingleThreadScheduledExecutor(newThreadFactory())))
         .collect(Collectors.toList());
 
     try {
@@ -105,16 +119,20 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
       throw new IllegalStateException("BenchmarksState beforeAll() failed: " + ex, ex);
     }
 
-    consoleReporter.start(settings.reporterInterval().toMillis(), TimeUnit.MILLISECONDS);
+    if (settings.consoleReporterEnabled()) {
+      consoleReporter.start(settings.reporterInterval().toMillis(), TimeUnit.MILLISECONDS);
+    }
+
     csvReporter.start(settings.reporterInterval().toMillis(), TimeUnit.MILLISECONDS);
 
     Runtime.getRuntime().addShutdownHook(new Thread(() -> {
       if (started.get()) {
         csvReporter.report();
-        consoleReporter.report();
+        if (consoleReporter != null) {
+          consoleReporter.report();
+        }
       }
     }));
-
   }
 
   /**
@@ -147,6 +165,8 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
       afterAll();
     } catch (Exception ex) {
       throw new IllegalStateException("BenchmarksState afterAll() failed: " + ex, ex);
+    } finally {
+      MDC.remove(MDC_BENCHMARK_DIR);
     }
   }
 
@@ -207,12 +227,18 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
 
       Function<Long, Object> unitOfWork = func.apply(self);
 
-      Flux<Long> fromStream = Flux.fromStream(LongStream.range(0, settings.numOfIterations()).boxed());
+      CountDownLatch latch = new CountDownLatch(1);
 
-      Flux.merge(fromStream
-          .publishOn(scheduler()).map(unitOfWork))
-          .take(settings.executionTaskDuration())
-          .blockLast();
+      Flux.fromStream(LongStream.range(0, settings.numOfIterations()).boxed())
+          .parallel()
+          .runOn(scheduler())
+          .map(unitOfWork)
+          .doOnTerminate(latch::countDown)
+          .subscribe();
+
+      latch.await(settings.executionTaskDuration().toMillis(), TimeUnit.MILLISECONDS);
+    } catch (InterruptedException e) {
+      throw Exceptions.propagate(e);
     } finally {
       self.shutdown();
     }
@@ -251,11 +277,12 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
   }
 
   /**
-   * Runs given function on this state. It also executes {@link BenchmarksState#start()} before and
+   * Uses a resource, generated by a supplier, to run given function on this activated state. The Publisher of resources
+   * will be received from the setUp function. The setUp function will be invoked with given intervals, according to the
+   * benchmark rampUp settings. And when the resource will be available then it will start executing the unitOfWork. And
+   * when execution of the unitOfWorks will be finished (by time completion or by iteration's completion) the resource
+   * will be released with the cleanUp function. It also executes {@link BenchmarksState#start()} before and
    * {@link BenchmarksState#shutdown()} after.
-   * <p>
-   * NOTICE: It's only for asynchronous code.
-   * </p>
    *
    * @param setUp a function that should return some T type which one will be passed into next to the argument. Also,
    *        this function will be invoked with some ramp-up strategy, and when it will be invoked it will start
@@ -279,7 +306,7 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
 
       BiFunction<Long, T, Publisher<?>> unitOfWork = func.apply(self);
 
-      Flux.interval(settings.rampUpInterval())
+      Flux.interval(Duration.ZERO, settings.rampUpInterval())
           .take(settings.rampUpDuration())
           .flatMap(rampUpIteration -> {
 
@@ -310,5 +337,25 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
     } finally {
       self.shutdown();
     }
+  }
+
+  private ThreadFactory newThreadFactory() {
+    return runnable -> {
+      Map<String, String> mdcCopy = MDC.getCopyOfContextMap();
+
+      return new Thread(runnable) {
+
+        private boolean mdcWasSet;
+
+        @Override
+        public void run() {
+          if (!mdcWasSet) {
+            MDC.setContextMap(mdcCopy);
+            mdcWasSet = true;
+          }
+          super.run();
+        }
+      };
+    };
   }
 }
