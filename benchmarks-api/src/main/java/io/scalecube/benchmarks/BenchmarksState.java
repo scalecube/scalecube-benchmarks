@@ -131,9 +131,6 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
    * Executes shutdown process of the state, also it includes running of {@link BenchmarksState#afterAll}.
    */
   public final void shutdown() {
-    MDC.remove(MDC_BENCHMARK_DIR);
-    MDC.remove(MDC_BENCHMARK_NAME);
-
     if (!started.compareAndSet(true, false)) {
       throw new IllegalStateException("BenchmarksState is not started");
     }
@@ -160,6 +157,9 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
       afterAll();
     } catch (Exception ex) {
       throw new IllegalStateException("BenchmarksState afterAll() failed: " + ex, ex);
+    } finally {
+      MDC.remove(MDC_BENCHMARK_DIR);
+      MDC.remove(MDC_BENCHMARK_NAME);
     }
   }
 
