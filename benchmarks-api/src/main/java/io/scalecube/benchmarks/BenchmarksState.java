@@ -18,6 +18,7 @@ import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 
 import java.time.Duration;
 import java.util.List;
@@ -51,6 +52,9 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(BenchmarksState.class);
 
+  private static final String MDC_BENCHMARK_DIR = "benchmarkDir";
+  private static final String MDC_BENCHMARK_NAME = "benchmarkName";
+
   protected final BenchmarksSettings settings;
 
   protected Scheduler scheduler;
@@ -80,6 +84,9 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
     if (!started.compareAndSet(false, true)) {
       throw new IllegalStateException("BenchmarksState is already started");
     }
+
+    MDC.put(MDC_BENCHMARK_DIR, settings.csvReporterDirectory().toString());
+    MDC.put(MDC_BENCHMARK_NAME, settings.taskName());
 
     LOGGER.info("Benchmarks settings: " + settings);
 
@@ -124,6 +131,9 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
    * Executes shutdown process of the state, also it includes running of {@link BenchmarksState#afterAll}.
    */
   public final void shutdown() {
+    MDC.remove(MDC_BENCHMARK_DIR);
+    MDC.remove(MDC_BENCHMARK_NAME);
+
     if (!started.compareAndSet(true, false)) {
       throw new IllegalStateException("BenchmarksState is not started");
     }

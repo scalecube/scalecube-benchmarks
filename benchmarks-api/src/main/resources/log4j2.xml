@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration>
+
+  <Properties>
+    <Property name="patternLayout">%level{length=1} %d{ISO8601} %c{1.} %m [%t]%n</Property>
+  </Properties>
+
+  <Appenders>
+
+    <Routing name="separateBenchmarkLogs">
+      <Routes pattern="$${ctx:benchmarkDir}_$${ctx:benchmarkName}">
+        <!-- This route is chosen if ThreadContext has values for keys: benchmarkDir, benchmarkName. -->
+        <Route>
+          <RollingFile name="Rolling-${ctx:benchmarkDir}-${ctx:benchmarkName}"
+                       fileName="${ctx:benchmarkDir}/${ctx:benchmarkName}.log"
+                       filePattern="${ctx:benchmarkDir}/${ctx:benchmarkName}-%d{yyyy-MM-dd-HH}.log">
+            <PatternLayout pattern="${patternLayout}"/>
+            <Policies>
+              <OnStartupTriggeringPolicy/>
+              <TimeBasedTriggeringPolicy/>
+              <SizeBasedTriggeringPolicy size="50 MB"/>
+            </Policies>
+          </RollingFile>
+        </Route>
+
+        <!-- This route is chosen if ThreadContext has no value for keys: benchmarkDir, benchmarkName. -->
+        <Route key="$${ctx:benchmarkDir}_$${ctx:benchmarkName}">
+          <RollingFile name="Rolling-default"
+                       fileName="benchmarks/default.log"
+                       filePattern="benchmarks/default-%d{yyyy-MM-dd-HH}.log">
+            <PatternLayout pattern="${patternLayout}"/>
+            <Policies>
+              <OnStartupTriggeringPolicy/>
+              <TimeBasedTriggeringPolicy/>
+              <SizeBasedTriggeringPolicy size="50 MB"/>
+            </Policies>
+          </RollingFile>
+        </Route>
+
+      </Routes>
+    </Routing>
+  </Appenders>
+
+  <Loggers>
+    <!--<Root level="${ctx:logLevel}">-->
+    <Root level="debug">
+      <AppenderRef ref="separateBenchmarkLogs"/>
+    </Root>
+  </Loggers>
+
+</Configuration>
