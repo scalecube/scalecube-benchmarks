@@ -42,8 +42,7 @@
   </Appenders>
 
   <Loggers>
-    <!--<Root level="${ctx:logLevel}">-->
-    <Root level="debug">
+    <Root level="${env:logLevel:-info}">
       <AppenderRef ref="separateBenchmarkLogs"/>
     </Root>
   </Loggers>
