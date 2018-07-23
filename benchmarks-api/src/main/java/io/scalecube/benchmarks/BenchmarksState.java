@@ -1,6 +1,7 @@
 package io.scalecube.benchmarks;
 
 import com.codahale.metrics.ConsoleReporter;
+import com.codahale.metrics.Counter;
 import com.codahale.metrics.CsvReporter;
 import com.codahale.metrics.Histogram;
 import com.codahale.metrics.Meter;
@@ -206,6 +207,16 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
    */
   public Histogram histogram(String name) {
     return settings.registry().histogram(settings.taskName() + "-" + name);
+  }
+
+  /**
+   * Returns counter with specified name.
+   *
+   * @param name name
+   * @return counter with specified name
+   */
+  public Counter counter(String name) {
+    return settings.registry().counter(settings.taskName() + "-" + name);
   }
 
   /**
