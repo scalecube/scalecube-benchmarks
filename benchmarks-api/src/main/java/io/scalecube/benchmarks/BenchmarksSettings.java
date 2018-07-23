@@ -66,7 +66,7 @@ public class BenchmarksSettings {
 
     String time = LocalDateTime.ofInstant(Instant.now(), ZoneOffset.UTC)
         .format(DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm-ss"));
-    this.csvReporterDirectory = Paths.get("benchmarks", "results", find("alias", taskName), time).toFile();
+    this.csvReporterDirectory = Paths.get("reports", "benchmarks", find("alias", taskName), time).toFile();
     // noinspection ResultOfMethodCallIgnored
     this.csvReporterDirectory.mkdirs();
   }

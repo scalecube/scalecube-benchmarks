@@ -1,5 +1,5 @@
 # scalecube-benchmarks
-Microbenchmarks framework
+Benchmarks framework
 
 ## Download
 
@@ -7,13 +7,13 @@ Microbenchmarks framework
 <dependency>
   <groupId>io.scalecube</groupId>
   <artifactId>scalecube-benchmarks-api</artifactId>
-  <version>1.1.8</version>
+  <version>1.1.9</version>
 </dependency>
 ```
 
 ## Getting started
 
-First, you need to create the settings which will be used while test is running. You can use the builder for it:
+First, you need to create the settings which will be used while test is running:
 
 ```java
 public static void main(String[] args) {
@@ -25,9 +25,9 @@ public static void main(String[] args) {
 }
 ```
 
-As you see, you could want to override some default settings with the command line, just include them during startup of the test. Or just use the hardcoded style when you write a test scenario.
+To override default settings with the command line include them as program variables at startup of the test. Or set them up programmatically inside a runner. See complete list of settings [here](https://github.com/scalecube/scalecube-benchmarks/wiki/Benchmarks-settings).
 
-The second point is you need to prepare some state for your test scenario. You can define how to launch your server, launch some client or just execute some work before running test scenario. For instance, you can create a separated class to reduce writing your scenario in a test or reuse the same state in different scenarios.
+The second point is you need to prepare BenchmarksState instance for test scenario. You can define how to launch your server, launch some client or just execute some work before running test scenario. For instance, you can create a separated class to reuse the same BenchmarksState class in different scenarios:
 
 ```java
 public class ExampleServiceBenchmarksState extends BenchmarksState<ExampleServiceBenchmarksState> {
@@ -48,7 +48,7 @@ public class ExampleServiceBenchmarksState extends BenchmarksState<ExampleServic
   }
 }
 ```
-You can override two methods: `beforeAll` and `afterAll`, these methods will be invoked before test execution and after test termination. The state also may need some settings and it can get them from given BenchmarkSettings via constructor. Also, this state has a few necessary methods, about them below.
+You can override two methods: `beforeAll` and `afterAll`, these methods will be invoked before test execution and after test termination. The state class has a few necessary methods, about them below.
 
 ### runForSync
 
@@ -56,18 +56,21 @@ You can override two methods: `beforeAll` and `afterAll`, these methods will be 
 void runForSync(Function<SELF, Function<Long, Object>> func)
 ```
 
-This method intends for execution synchronous tasks. It receives a function, that should return the execution to be tested for the given the state. For instance:
+This method intends for execution of synchronous tasks. As input you have to provide a function that should return the execution to be tested for the given the state at certain iteration. For instance:
 
 ```java
 public static void main(String[] args) {
     BenchmarksSettings settings = ...;
     new RouterBenchmarksState(settings).runForSync(state -> {
 
+      // prepare metrics, tools and etc. before actual test iterations start
       Timer timer = state.timer("timer");
       Router router = state.getRouter();
 
+      // call and measure test scenario
       return iteration -> {
         Timer.Context timeContext = timer.time();
+        // NOTE: this call is synchronous
         ServiceReference serviceReference = router.route(request);
         timeContext.stop();
         return serviceReference;
@@ -76,33 +79,31 @@ public static void main(String[] args) {
   }
 ```
 
-As you see, to use this method you need return some function, to generate one you can use the transferred state and iteration's number.
-
 ### runForAsync
 
 ```java
 void runForAsync(Function<SELF, Function<Long, Publisher<?>>> func)
 ```
 
-This method intends for execution asynchronous tasks. It receives a function, that should return the execution to be tested for the given the state. Note, the unitOfwork should return some `Publisher`. For instance:
+This method intends for execution of asynchronous tasks. It receives a function, that should return the execution to be tested for the given the state. Note, the unitOfwork (see `Function<Long, Publisher<?>>` from the signature) should return some `Publisher`. For instance:
 
 ```java
   public static void main(String[] args) {
     BenchmarksSettings settings = ...;
     new ExampleServiceBenchmarksState(settings).runForAsync(state -> {
 
+      // prepare metrics before test interations start
       ExampleService service = state.exampleService();
       Meter meter = state.meter("meter");
 
       return iteration -> {
+        // NOTE: this is asynchronous call, method invoke retuns a publisher
         return service.invoke("hello")
             .doOnTerminate(() -> meter.mark());
       };
     });
   }
 ```
-
-As you see, to use this method you need return some function, to generate one you can use the transferred state and iteration's number.
 
 ### runWithRampUp
 
@@ -112,7 +113,12 @@ As you see, to use this method you need return some function, to generate one yo
                        BiFunction<SELF, T, Mono<Void>> cleanUp)
 ```
 
-This method intends for execution asynchronous tasks with consumption some resources via ramp-up strategy. It receives three functions, they are necessary to provide all resource life-cycle. The first function is like resource supplier, to implement this one you have access to the active state and a ramp-up iteration's number. And when ramp-up strategy asks for new resources it will be invoked. The second function is like unitOfWork supplier, to implement this one you receive the active state (to take some services or metric's tools), iteration's number and a resource, that was created on the former step. And the last function is like clean-up supplier, that knows how to need release given resource. For instance:
+This method intends for execution of asynchronous tasks with consumption some resources via ramp-up strategy. It receives three functions: setUp, unitOfWork, cleanUp. 
+First function `setUp` is a resource supplier; this function is being called on every ramp-up iteration.
+The second function (see `BiFunction<Long, T, Publisher<?>>`) is like unitOfWork supplier, actual test scenario must define here; this unitOfWork is being called on every test iteration and accepts as input a product of corresponding `setUp` call.
+The third one is `cleanUp` supplier, that knows how to release resources that was created at ramp-up stage. More about ramp-up algorithm [here](https://github.com/scalecube/scalecube-benchmarks/wiki/Ramp-up-test-scenarios).
+
+For instance:
 
 ```java
   public static void main(String[] args) {
@@ -132,8 +138,3 @@ This method intends for execution asynchronous tasks with consumption some resou
         (state, serviceCaller) -> serviceCaller.close());
   }
 ```
-
-It's time to describe the settings in more detail. First, you can see two ramp-up parameters, these are `rampUpDuration` and `rampUpInterval`. They need to specify how long will be processing ramp-up stage and how often will be invoked the resource supplier to receive a new resource. Also, we have two parameters to specify how long will be processing all `unitOfWork`s on the given resource (`executionTaskDuration`) and with another one you can specify some interval that will be applied to invoke the next `unitOfWork` on the given resource (`executionTaskInterval`).
-
-## Additional links
- + [How-to-launch-benchmarks](https://github.com/scalecube/scalecube-benchmarks/wiki/How-to-launch-benchmarks)
