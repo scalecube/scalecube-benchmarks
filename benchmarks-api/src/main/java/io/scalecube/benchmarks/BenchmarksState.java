@@ -91,8 +91,6 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
 
     LOGGER.info("Benchmarks settings: " + settings);
 
-    settings.registry().register(settings.taskName() + "-memory", new MemoryUsageGaugeSet());
-
     if (settings.consoleReporterEnabled()) {
       consoleReporter = ConsoleReporter.forRegistry(settings.registry())
           .outputTo(System.out)
@@ -119,6 +117,8 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
     } catch (Exception ex) {
       throw new IllegalStateException("BenchmarksState beforeAll() failed: " + ex, ex);
     }
+
+    settings.registry().register(settings.taskName() + "-memory", new MemoryUsageGaugeSet());
 
     if (settings.consoleReporterEnabled()) {
       consoleReporter.start(settings.reporterInterval().toMillis(), TimeUnit.MILLISECONDS);
