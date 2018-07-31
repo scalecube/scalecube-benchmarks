@@ -43,7 +43,9 @@ public class BenchmarksSettings {
   private final Map<String, String> options;
 
   public static Builder from(String[] args) {
-    return new Builder().from(args);
+    Builder builder = new Builder();
+    builder.args = args;
+    return builder;
   }
 
   private BenchmarksSettings(Builder builder) {
@@ -153,7 +155,7 @@ public class BenchmarksSettings {
   }
 
   public static class Builder {
-    private final Map<String, String> options = new HashMap<>();
+    private final Map<String, String> options;
 
     private int nThreads = N_THREADS;
     private Duration executionTaskDuration = EXECUTION_TASK_DURATION;
@@ -165,13 +167,26 @@ public class BenchmarksSettings {
     private Duration rampUpDuration = RAMP_UP_DURATION;
     private Duration rampUpInterval = RAMP_UP_INTERVAL;
     private boolean consoleReporterEnabled = CONSOLE_REPORTER_ENABLED;
+    private String[] args = new String[] {};
 
-    public Builder from(String[] args) {
-      this.parse(args);
-      return this;
+    private Builder() {
+      this.options = new HashMap<>();
     }
 
-    private Builder() {}
+    private Builder(Builder that) {
+      this.options = that.options;
+      this.nThreads = that.nThreads;
+      this.executionTaskDuration = that.executionTaskDuration;
+      this.executionTaskInterval = that.executionTaskInterval;
+      this.reporterInterval = that.reporterInterval;
+      this.durationUnit = that.durationUnit;
+      this.rateUnit = that.rateUnit;
+      this.numOfIterations = that.numOfIterations;
+      this.rampUpDuration = that.rampUpDuration;
+      this.rampUpInterval = that.rampUpInterval;
+      this.consoleReporterEnabled = that.consoleReporterEnabled;
+      this.args = that.args;
+    }
 
     public Builder nThreads(int numThreads) {
       this.nThreads = numThreads;
@@ -229,10 +244,10 @@ public class BenchmarksSettings {
     }
 
     public BenchmarksSettings build() {
-      return new BenchmarksSettings(this);
+      return new BenchmarksSettings(new Builder(this).parseArgs());
     }
 
-    private void parse(String[] args) {
+    private Builder parseArgs() {
       if (args != null) {
         for (String pair : args) {
           String[] keyValue = pair.split("=", 2);
@@ -269,6 +284,7 @@ public class BenchmarksSettings {
           }
         }
       }
+      return this;
     }
   }
 }
