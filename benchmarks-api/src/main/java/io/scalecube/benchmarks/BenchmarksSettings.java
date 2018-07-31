@@ -12,6 +12,8 @@ import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Predicate;
+import java.util.regex.Pattern;
 
 public class BenchmarksSettings {
 
@@ -25,6 +27,8 @@ public class BenchmarksSettings {
   private static final Duration RAMP_UP_DURATION = Duration.ofSeconds(10);
   private static final Duration RAMP_UP_INTERVAL = Duration.ofSeconds(1);
   private static final boolean CONSOLE_REPORTER_ENABLED = true;
+  private static final String ALIAS_PATTERN = "^[.a-zA-Z_0-9]+$";
+  private static final Predicate<String> ALIAS_PREDICATE = Pattern.compile(ALIAS_PATTERN).asPredicate();
 
   private final int nThreads;
   private final Duration executionTaskDuration;
@@ -68,7 +72,13 @@ public class BenchmarksSettings {
 
     String time = LocalDateTime.ofInstant(Instant.now(), ZoneOffset.UTC)
         .format(DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm-ss"));
-    this.csvReporterDirectory = Paths.get("reports", "benchmarks", find("alias", taskName), time).toFile();
+
+    String alias = find("alias", taskName);
+    if (!ALIAS_PREDICATE.test(alias)) {
+      throw new IllegalArgumentException("alias '" + alias + "' must match pattern " + ALIAS_PATTERN);
+    }
+
+    this.csvReporterDirectory = Paths.get("reports", "benchmarks", alias, time).toFile();
     // noinspection ResultOfMethodCallIgnored
     this.csvReporterDirectory.mkdirs();
   }
