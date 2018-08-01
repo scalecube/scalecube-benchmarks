@@ -6,7 +6,9 @@ import com.codahale.metrics.CsvReporter;
 import com.codahale.metrics.Histogram;
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.Timer;
+import com.codahale.metrics.jvm.GarbageCollectorMetricSet;
 import com.codahale.metrics.jvm.MemoryUsageGaugeSet;
+import com.codahale.metrics.jvm.ThreadStatesGaugeSet;
 
 import reactor.core.Exceptions;
 import reactor.core.publisher.Flux;
@@ -91,8 +93,6 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
 
     LOGGER.info("Benchmarks settings: " + settings);
 
-    settings.registry().register(settings.taskName() + "-memory", new MemoryUsageGaugeSet());
-
     if (settings.consoleReporterEnabled()) {
       consoleReporter = ConsoleReporter.forRegistry(settings.registry())
           .outputTo(System.out)
@@ -119,6 +119,10 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
     } catch (Exception ex) {
       throw new IllegalStateException("BenchmarksState beforeAll() failed: " + ex, ex);
     }
+
+    settings.registry().register(settings.taskName() + "-gc", new GarbageCollectorMetricSet());
+    settings.registry().register(settings.taskName() + "-memory", new MemoryUsageGaugeSet());
+    settings.registry().register(settings.taskName() + "-threads", new ThreadStatesGaugeSet());
 
     if (settings.consoleReporterEnabled()) {
       consoleReporter.start(settings.reporterInterval().toMillis(), TimeUnit.MILLISECONDS);
