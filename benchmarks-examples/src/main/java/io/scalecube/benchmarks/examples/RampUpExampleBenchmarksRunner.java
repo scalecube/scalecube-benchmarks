@@ -5,6 +5,7 @@ import io.scalecube.benchmarks.BenchmarksSettings;
 import com.codahale.metrics.Timer;
 
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
@@ -19,13 +20,12 @@ public class RampUpExampleBenchmarksRunner {
   public static void main(String[] args) {
     BenchmarksSettings settings = BenchmarksSettings.from(args)
         .rampUpDuration(Duration.ofSeconds(10))
-        .rampUpInterval(Duration.ofSeconds(1))
         .executionTaskDuration(Duration.ofSeconds(30))
         .durationUnit(TimeUnit.NANOSECONDS)
         .build();
 
     new ExampleServiceBenchmarksState(settings).runWithRampUp(
-        (rampUpIteration, state) -> Flux.range(1, 3).map(i -> new ServiceCaller(state.exampleService())),
+        (rampUpIteration, state) -> Mono.just(new ServiceCaller(state.exampleService())),
         state -> {
           Timer timer = state.timer("timer");
           return (iteration, serviceCaller) -> {

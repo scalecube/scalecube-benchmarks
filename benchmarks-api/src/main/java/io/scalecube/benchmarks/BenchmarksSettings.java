@@ -42,6 +42,8 @@ public class BenchmarksSettings {
   private final long numOfIterations;
   private final Duration rampUpDuration;
   private final boolean consoleReporterEnabled;
+  private final int users;
+  private final int messageRate;
 
   private final Duration executionTaskInterval;
   private Duration rampUpInterval;
@@ -70,6 +72,8 @@ public class BenchmarksSettings {
     this.rampUpInterval = builder.rampUpInterval;
     this.usersPerRampUpInterval = builder.usersPerRampUpInterval;
     this.messagesPerExecutionInterval = builder.messagesPerExecutionInterval;
+    this.users = builder.users;
+    this.messageRate = builder.messageRate;
 
     this.registry = new MetricRegistry();
 
@@ -149,18 +153,25 @@ public class BenchmarksSettings {
     return rampUpDuration;
   }
 
-
-
   public boolean consoleReporterEnabled() {
     return consoleReporterEnabled;
   }
 
+  public int users() {
+    return users;
+  }
+
+  public int messageRate() {
+    return messageRate;
+  }
 
   private String minifyClassName(String className) {
     return className.replaceAll("\\B\\w+(\\.[a-zA-Z])", "$1");
   }
 
   public static class Builder {
+    private static final int DEFAULT_USERS = 1000;
+    private static final int DEFAULT_MESSAGE_RATE = 1000;
     private final Map<String, String> options;
 
     private int nThreads = N_THREADS;
@@ -172,8 +183,9 @@ public class BenchmarksSettings {
     private long numOfIterations = NUM_OF_ITERATIONS;
     private Duration rampUpDuration = RAMP_UP_DURATION;
     private boolean consoleReporterEnabled = CONSOLE_REPORTER_ENABLED;
+    private int users;
+    private int messageRate;
     private String[] args = new String[] {};
-
     // dynamic params
     private Duration rampUpInterval;
     private int usersPerRampUpInterval;
@@ -198,6 +210,8 @@ public class BenchmarksSettings {
       this.rampUpInterval = that.rampUpInterval;
       this.usersPerRampUpInterval = that.usersPerRampUpInterval;
       this.messagesPerExecutionInterval = that.messagesPerExecutionInterval;
+      this.users = that.users;
+      this.messageRate = that.messageRate;
     }
 
     public Builder nThreads(int numThreads) {
@@ -250,6 +264,16 @@ public class BenchmarksSettings {
       return this;
     }
 
+    public Builder users(int users) {
+      this.users = users;
+      return this;
+    }
+
+    public Builder messageRate(int messageRate) {
+      this.messageRate = messageRate;
+      return this;
+    }
+
     public BenchmarksSettings build() {
       return new BenchmarksSettings(new Builder(this).parseArgs().calculateDynamicParams());
     }
@@ -257,12 +281,17 @@ public class BenchmarksSettings {
     private Builder calculateDynamicParams() {
       // if no "users specified - don't calculate, means we are
       // running another type of scenario and don't want to overload any parameters
-      if (!options.containsKey("users")) {
+      if (users <= 0 && messageRate <= 0) {
         return this;
       }
+      if (users <= 0) {
+        users = DEFAULT_USERS;
+      }
+      if (messageRate <= 0) {
+        messageRate = DEFAULT_MESSAGE_RATE;
+      }
+
       // calculate rampup parameners
-      int users = Integer.parseInt(options.getOrDefault("users", "1000"));
-      int messageRate = Integer.parseInt(options.getOrDefault("messageRate", "1000"));
       long rampUpDurationMillis = this.rampUpDuration.toMillis();
 
       if (rampUpDurationMillis / users >= MINIMAL_INTERVAL.toMillis()) {
