@@ -313,9 +313,6 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
       Function<SELF, BiFunction<Long, T, Publisher<?>>> func,
       BiFunction<SELF, T, Mono<Void>> cleanUp) {
 
-    if (settings.users() <= 0 && settings.messageRate() <= 0) {
-      throw new IllegalStateException("One of 'users' or 'messageRate' parameters must be set");
-    }
     // noinspection unchecked
     @SuppressWarnings("unchecked")
     SELF self = (SELF) this;
