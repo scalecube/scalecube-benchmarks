@@ -23,6 +23,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
@@ -312,6 +313,9 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
       Function<SELF, BiFunction<Long, T, Publisher<?>>> func,
       BiFunction<SELF, T, Mono<Void>> cleanUp) {
 
+    if (settings.users() <= 0 && settings.messageRate() <= 0) {
+      throw new IllegalStateException("One of 'users' or 'messageRate' parameters must be set");
+    }
     // noinspection unchecked
     @SuppressWarnings("unchecked")
     SELF self = (SELF) this;
@@ -320,7 +324,7 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
 
       BiFunction<Long, T, Publisher<?>> unitOfWork = func.apply(self);
 
-      Flux.interval(settings.rampUpInterval())
+      Flux.interval(Duration.ZERO, settings.rampUpInterval())
           .take(settings.rampUpDuration())
           .flatMap(rampUpIteration -> {
 

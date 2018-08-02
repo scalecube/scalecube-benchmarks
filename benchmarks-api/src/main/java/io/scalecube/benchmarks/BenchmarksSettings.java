@@ -169,6 +169,31 @@ public class BenchmarksSettings {
     return className.replaceAll("\\B\\w+(\\.[a-zA-Z])", "$1");
   }
 
+  @Override
+  public String toString() {
+    final StringBuilder sb = new StringBuilder("BenchmarksSettings{");
+    sb.append("nThreads=").append(nThreads);
+    sb.append(", executionTaskDuration=").append(executionTaskDuration);
+    sb.append(", reporterInterval=").append(reporterInterval);
+    sb.append(", csvReporterDirectory=").append(csvReporterDirectory);
+    sb.append(", taskName='").append(taskName).append('\'');
+    sb.append(", durationUnit=").append(durationUnit);
+    sb.append(", rateUnit=").append(rateUnit);
+    sb.append(", registry=").append(registry);
+    sb.append(", numOfIterations=").append(numOfIterations);
+    sb.append(", rampUpDuration=").append(rampUpDuration);
+    sb.append(", consoleReporterEnabled=").append(consoleReporterEnabled);
+    sb.append(", users=").append(users);
+    sb.append(", messageRate=").append(messageRate);
+    sb.append(", executionTaskInterval=").append(executionTaskInterval);
+    sb.append(", rampUpInterval=").append(rampUpInterval);
+    sb.append(", usersPerRampUpInterval=").append(usersPerRampUpInterval);
+    sb.append(", messagesPerExecutionInterval=").append(messagesPerExecutionInterval);
+    sb.append(", options=").append(options);
+    sb.append('}');
+    return sb.toString();
+  }
+
   public static class Builder {
     private static final int DEFAULT_USERS = 1000;
     private static final int DEFAULT_MESSAGE_RATE = 1000;
@@ -306,17 +331,18 @@ public class BenchmarksSettings {
       }
 
       // calculate execution parameters
-      int userRate = Math.floorDiv(messageRate, users);
+      double userRate = (double) messageRate / users;
       if (userRate <= 1) {
         // 1. Enough users to provide the required rate sending each user 1 msg per (>= 1 second)
         this.messagesPerExecutionInterval = 1;
-        this.executionTaskInterval = Duration.ofMillis(Math.floorDiv(1000, userRate));
+        this.executionTaskInterval = Duration.ofMillis((long) (1000 / userRate));
       } else {
         int maxUsersLoad = (int) Math.floorDiv(users * 1000, MINIMAL_INTERVAL.toMillis());
         if (maxUsersLoad >= messageRate) {
           // 2. Still can provide the required rate sending 1 mesg per tick, execution interval = [MIN_INTERVAL, 1 sec]
           this.messagesPerExecutionInterval = 1;
-          this.executionTaskInterval = Duration.ofMillis(Math.floorDiv(messageRate * 1000, maxUsersLoad));
+          this.executionTaskInterval =
+              Duration.ofMillis(Math.floorDiv(maxUsersLoad, messageRate) * MINIMAL_INTERVAL.toMillis());
         } else {
           // 3. Have to send multiple messages per execution interval , interval already minimum (MIN_INTERVAL)
           this.messagesPerExecutionInterval = Math.floorDiv(messageRate, maxUsersLoad);

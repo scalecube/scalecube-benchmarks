@@ -4,7 +4,6 @@ import io.scalecube.benchmarks.BenchmarksSettings;
 
 import com.codahale.metrics.Timer;
 
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.time.Duration;
@@ -19,7 +18,9 @@ public class RampUpExampleBenchmarksRunner {
    */
   public static void main(String[] args) {
     BenchmarksSettings settings = BenchmarksSettings.from(args)
-        .rampUpDuration(Duration.ofSeconds(10))
+        .rampUpDuration(Duration.ofSeconds(30))
+        .users(10_000)
+        .messageRate(50_000)
         .executionTaskDuration(Duration.ofSeconds(30))
         .durationUnit(TimeUnit.NANOSECONDS)
         .build();
