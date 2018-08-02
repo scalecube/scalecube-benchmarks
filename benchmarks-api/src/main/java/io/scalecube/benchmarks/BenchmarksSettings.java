@@ -20,19 +20,19 @@ public class BenchmarksSettings {
   private static final int N_THREADS = Runtime.getRuntime().availableProcessors();
   private static final Duration EXECUTION_TASK_DURATION = Duration.ofSeconds(60);
   private static final Duration EXECUTION_TASK_INTERVAL = Duration.ZERO;
+  private static final Duration MINIMAL_INTERVAL = Duration.ofMillis(100);
   private static final Duration REPORTER_INTERVAL = Duration.ofSeconds(3);
   private static final TimeUnit DURATION_UNIT = TimeUnit.MILLISECONDS;
+
   private static final TimeUnit RATE_UNIT = TimeUnit.SECONDS;
   private static final long NUM_OF_ITERATIONS = Long.MAX_VALUE;
   private static final Duration RAMP_UP_DURATION = Duration.ofSeconds(10);
-  private static final Duration RAMP_UP_INTERVAL = Duration.ofSeconds(1);
   private static final boolean CONSOLE_REPORTER_ENABLED = true;
   private static final String ALIAS_PATTERN = "^[.a-zA-Z_0-9]+$";
   private static final Predicate<String> ALIAS_PREDICATE = Pattern.compile(ALIAS_PATTERN).asPredicate();
 
   private final int nThreads;
   private final Duration executionTaskDuration;
-  private final Duration executionTaskInterval;
   private final Duration reporterInterval;
   private final File csvReporterDirectory;
   private final String taskName;
@@ -41,8 +41,12 @@ public class BenchmarksSettings {
   private final MetricRegistry registry;
   private final long numOfIterations;
   private final Duration rampUpDuration;
-  private final Duration rampUpInterval;
   private final boolean consoleReporterEnabled;
+
+  private final Duration executionTaskInterval;
+  private Duration rampUpInterval;
+  private int usersPerRampUpInterval;
+  private int messagesPerExecutionInterval;
 
   private final Map<String, String> options;
 
@@ -55,15 +59,17 @@ public class BenchmarksSettings {
   private BenchmarksSettings(Builder builder) {
     this.nThreads = builder.nThreads;
     this.executionTaskDuration = builder.executionTaskDuration;
-    this.executionTaskInterval = builder.executionTaskInterval;
     this.reporterInterval = builder.reporterInterval;
     this.numOfIterations = builder.numOfIterations;
     this.consoleReporterEnabled = builder.consoleReporterEnabled;
     this.rampUpDuration = builder.rampUpDuration;
-    this.rampUpInterval = builder.rampUpInterval;
     this.options = builder.options;
     this.durationUnit = builder.durationUnit;
     this.rateUnit = builder.rateUnit;
+    this.executionTaskInterval = builder.executionTaskInterval;
+    this.rampUpInterval = builder.rampUpInterval;
+    this.usersPerRampUpInterval = builder.usersPerRampUpInterval;
+    this.messagesPerExecutionInterval = builder.messagesPerExecutionInterval;
 
     this.registry = new MetricRegistry();
 
@@ -81,6 +87,18 @@ public class BenchmarksSettings {
     this.csvReporterDirectory = Paths.get("reports", "benchmarks", alias, time).toFile();
     // noinspection ResultOfMethodCallIgnored
     this.csvReporterDirectory.mkdirs();
+  }
+
+  public Duration rampUpInterval() {
+    return rampUpInterval;
+  }
+
+  public int usersPerRampUpInterval() {
+    return usersPerRampUpInterval;
+  }
+
+  public int messagesPerExecutionInterval() {
+    return messagesPerExecutionInterval;
   }
 
   public int nThreads() {
@@ -131,34 +149,12 @@ public class BenchmarksSettings {
     return rampUpDuration;
   }
 
-  public Duration rampUpInterval() {
-    return rampUpInterval;
-  }
+
 
   public boolean consoleReporterEnabled() {
     return consoleReporterEnabled;
   }
 
-  @Override
-  public String toString() {
-    final StringBuilder sb = new StringBuilder("BenchmarksSettings{");
-    sb.append("nThreads=").append(nThreads);
-    sb.append(", executionTaskDuration=").append(executionTaskDuration);
-    sb.append(", executionTaskInterval=").append(executionTaskInterval);
-    sb.append(", numOfIterations=").append(numOfIterations);
-    sb.append(", reporterInterval=").append(reporterInterval);
-    sb.append(", csvReporterDirectory=").append(csvReporterDirectory);
-    sb.append(", taskName='").append(taskName).append('\'');
-    sb.append(", durationUnit=").append(durationUnit);
-    sb.append(", rateUnit=").append(rateUnit);
-    sb.append(", rampUpDuration=").append(rampUpDuration);
-    sb.append(", rampUpInterval=").append(rampUpInterval);
-    sb.append(", consoleReporterEnabled=").append(consoleReporterEnabled);
-    sb.append(", registry=").append(registry);
-    sb.append(", options=").append(options);
-    sb.append('}');
-    return sb.toString();
-  }
 
   private String minifyClassName(String className) {
     return className.replaceAll("\\B\\w+(\\.[a-zA-Z])", "$1");
@@ -175,9 +171,13 @@ public class BenchmarksSettings {
     private TimeUnit rateUnit = RATE_UNIT;
     private long numOfIterations = NUM_OF_ITERATIONS;
     private Duration rampUpDuration = RAMP_UP_DURATION;
-    private Duration rampUpInterval = RAMP_UP_INTERVAL;
     private boolean consoleReporterEnabled = CONSOLE_REPORTER_ENABLED;
     private String[] args = new String[] {};
+
+    // dynamic params
+    private Duration rampUpInterval;
+    private int usersPerRampUpInterval;
+    private int messagesPerExecutionInterval;
 
     private Builder() {
       this.options = new HashMap<>();
@@ -193,9 +193,11 @@ public class BenchmarksSettings {
       this.rateUnit = that.rateUnit;
       this.numOfIterations = that.numOfIterations;
       this.rampUpDuration = that.rampUpDuration;
-      this.rampUpInterval = that.rampUpInterval;
       this.consoleReporterEnabled = that.consoleReporterEnabled;
       this.args = that.args;
+      this.rampUpInterval = that.rampUpInterval;
+      this.usersPerRampUpInterval = that.usersPerRampUpInterval;
+      this.messagesPerExecutionInterval = that.messagesPerExecutionInterval;
     }
 
     public Builder nThreads(int numThreads) {
@@ -243,18 +245,56 @@ public class BenchmarksSettings {
       return this;
     }
 
-    public Builder rampUpInterval(Duration rampUpInterval) {
-      this.rampUpInterval = rampUpInterval;
-      return this;
-    }
-
     public Builder consoleReporterEnabled(boolean consoleReporterEnabled) {
       this.consoleReporterEnabled = consoleReporterEnabled;
       return this;
     }
 
     public BenchmarksSettings build() {
-      return new BenchmarksSettings(new Builder(this).parseArgs());
+      return new BenchmarksSettings(new Builder(this).parseArgs().calculateDynamicParams());
+    }
+
+    private Builder calculateDynamicParams() {
+      // if no "users specified - don't calculate, means we are
+      // running another type of scenario and don't want to overload any parameters
+      if (!options.containsKey("users")) {
+        return this;
+      }
+      // calculate rampup parameners
+      int users = Integer.parseInt(options.getOrDefault("users", "1000"));
+      int messageRate = Integer.parseInt(options.getOrDefault("messageRate", "1000"));
+      long rampUpDurationMillis = this.rampUpDuration.toMillis();
+
+      if (rampUpDurationMillis / users >= MINIMAL_INTERVAL.toMillis()) {
+        // 1. Can provide rampup injecting 1 user per minimal interval
+        this.usersPerRampUpInterval = 1;
+        this.rampUpInterval = Duration.ofMillis(rampUpDurationMillis / users);
+      } else {
+        // 2. Need to inject multiple users per minimal interval to provide rampup
+        long intervals = Math.floorDiv(rampUpDurationMillis, MINIMAL_INTERVAL.toMillis());
+        this.usersPerRampUpInterval = (int) Math.floorDiv(users, intervals);
+        this.rampUpInterval = MINIMAL_INTERVAL;
+      }
+
+      // calculate execution parameters
+      int userRate = Math.floorDiv(messageRate, users);
+      if (userRate <= 1) {
+        // 1. Enough users to provide the required rate sending each user 1 msg per (>= 1 second)
+        this.messagesPerExecutionInterval = 1;
+        this.executionTaskInterval = Duration.ofMillis(Math.floorDiv(1000, userRate));
+      } else {
+        int maxUsersLoad = (int) Math.floorDiv(users * 1000, MINIMAL_INTERVAL.toMillis());
+        if (maxUsersLoad >= messageRate) {
+          // 2. Still can provide the required rate sending 1 mesg per tick, execution interval = [MIN_INTERVAL, 1 sec]
+          this.messagesPerExecutionInterval = 1;
+          this.executionTaskInterval = Duration.ofMillis(Math.floorDiv(messageRate * 1000, maxUsersLoad));
+        } else {
+          // 3. Have to send multiple messages per execution interval , interval already minimum (MIN_INTERVAL)
+          this.messagesPerExecutionInterval = Math.floorDiv(messageRate, maxUsersLoad);
+          this.executionTaskInterval = MINIMAL_INTERVAL;
+        }
+      }
+      return this;
     }
 
     private Builder parseArgs() {
@@ -281,9 +321,6 @@ public class BenchmarksSettings {
               break;
             case "rampUpDurationInSec":
               rampUpDuration(Duration.ofSeconds(Long.parseLong(value)));
-              break;
-            case "rampUpIntervalInMillis":
-              rampUpInterval(Duration.ofMillis(Long.parseLong(value)));
               break;
             case "consoleReporterEnabled":
               consoleReporterEnabled(Boolean.parseBoolean(value));
