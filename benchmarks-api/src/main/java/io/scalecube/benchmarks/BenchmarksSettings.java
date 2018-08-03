@@ -46,9 +46,9 @@ public class BenchmarksSettings {
   private final int messageRate;
 
   private final Duration executionTaskInterval;
-  private Duration rampUpInterval;
-  private int usersPerRampUpInterval;
-  private int messagesPerExecutionInterval;
+  private final Duration rampUpInterval;
+  private final int usersPerRampUpInterval;
+  private final int messagesPerExecutionInterval;
 
   private final Map<String, String> options;
 
@@ -309,9 +309,6 @@ public class BenchmarksSettings {
       if (users <= 0 && messageRate <= 0) {
         return this;
       }
-      if (users <= 0 && messageRate <= 0) {
-        throw new IllegalStateException("One of 'users' or 'messageRate' parameters must be set");
-      }
       if (rampUpDuration.isZero()) {
         throw new IllegalStateException("'rampUpDuration' must be greater than 0");
       }
@@ -326,7 +323,7 @@ public class BenchmarksSettings {
         messageRate = DEFAULT_MESSAGE_RATE;
       }
 
-      // calculate rampup parameners
+      // calculate rampup parameters
       long rampUpDurationMillis = this.rampUpDuration.toMillis();
 
       if (rampUpDurationMillis / users >= MINIMAL_INTERVAL.toMillis()) {
