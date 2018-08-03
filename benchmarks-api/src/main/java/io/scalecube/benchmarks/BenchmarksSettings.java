@@ -369,6 +369,15 @@ public class BenchmarksSettings {
           String key = keyValue[0];
           String value = keyValue[1];
           switch (key) {
+            case "users":
+              users(Integer.parseInt(value));
+              break;
+            case "messageRate":
+              messageRate(Integer.parseInt(value));
+              break;
+            case "executionTaskIntervalSeconds":
+              executionTaskInterval(Duration.ofSeconds(Integer.parseInt(value)));
+              break;
             case "nThreads":
               nThreads(Integer.parseInt(value));
               break;
