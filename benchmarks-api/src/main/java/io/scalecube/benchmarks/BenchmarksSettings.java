@@ -375,9 +375,6 @@ public class BenchmarksSettings {
             case "messageRate":
               messageRate(Integer.parseInt(value));
               break;
-            case "executionTaskIntervalSeconds":
-              executionTaskInterval(Duration.ofSeconds(Integer.parseInt(value)));
-              break;
             case "nThreads":
               nThreads(Integer.parseInt(value));
               break;
