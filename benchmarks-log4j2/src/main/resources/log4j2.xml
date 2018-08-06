@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<Configuration status="OFF">
+<Configuration status="WARN">
 
   <Properties>
     <Property name="patternLayout">%level{length=1} %d{ISO8601} %c{1.} %m [%t]%n</Property>
@@ -19,17 +19,12 @@
       </Policies>
       <DefaultRolloverStrategy max="1000"/>
     </RollingFile>
-
-    <Async name="ASYNC" includeLocation="true">
-      <AppenderRef ref="FILE"/>
-      <JCToolsBlockingQueue/>
-    </Async>
   </Appenders>
 
   <Loggers>
-    <Root level="${env:logLevel:-info}">
-      <AppenderRef ref="ASYNC"/>
-    </Root>
+    <AsyncRoot level="${env:logLevel:-info}">
+      <AppenderRef ref="FILE"/>
+    </AsyncRoot>
   </Loggers>
 
 </Configuration>
