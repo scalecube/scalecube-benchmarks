@@ -8,7 +8,7 @@
   <Appenders>
     <RollingFile name="FILE"
                  fileName="reports/benchmarks.log"
-                 filePattern="reports/benchmarks-%d{yyyy-MM-dd-HH}-%i.log.zip"
+                 filePattern="reports/benchmarks-%d{yyyy-MM-dd-HH}-%i.log"
                  ignoreExceptions="false">
       <PatternLayout pattern="${patternLayout}"/>
       <Policies>
