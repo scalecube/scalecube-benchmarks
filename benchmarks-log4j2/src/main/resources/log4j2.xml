@@ -10,7 +10,7 @@
                  fileName="reports/benchmarks.log"
                  filePattern="reports/benchmarks-%d{yyyy-MM-dd-HH}-%i.log"
                  ignoreExceptions="false"
-                 immediateFlush="false">
+                 immediateFlush="true">
       <PatternLayout pattern="${patternLayout}"/>
       <Policies>
         <OnStartupTriggeringPolicy/>
