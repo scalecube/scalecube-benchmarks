@@ -70,7 +70,7 @@
     <metrics-jvm.version>3.0.2</metrics-jvm.version>
     <slf4j.version>1.7.7</slf4j.version>
     <log4j.version>2.11.1</log4j.version>
-    <disruptor.version>1.2.12</disruptor.version>
+    <jctools.version>2.1.2</jctools.version>
 
     <junit.jupiter.version>5.2.0</junit.jupiter.version>
     <hamcrest-all.version>1.3</hamcrest-all.version>
@@ -102,9 +102,9 @@
       </dependency>
 
       <dependency>
-        <groupId>com.conversantmedia</groupId>
-        <artifactId>disruptor</artifactId>
-        <version>${disruptor.version}</version>
+        <groupId>org.jctools</groupId>
+        <artifactId>jctools-core</artifactId>
+        <version>${jctools.version}</version>
       </dependency>
 
       <!-- Reactor -->

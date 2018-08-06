@@ -27,9 +27,10 @@
     </dependency>
 
     <dependency>
-      <groupId>com.conversantmedia</groupId>
-      <artifactId>disruptor</artifactId>
+      <groupId>org.jctools</groupId>
+      <artifactId>jctools-core</artifactId>
     </dependency>
+
   </dependencies>
 
 </project>
