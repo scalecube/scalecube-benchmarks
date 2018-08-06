@@ -12,6 +12,7 @@
                  ignoreExceptions="false">
       <PatternLayout pattern="${patternLayout}"/>
       <Policies>
+        <OnStartupTriggeringPolicy/>
         <TimeBasedTriggeringPolicy/>
         <SizeBasedTriggeringPolicy size="50MB"/>
       </Policies>
