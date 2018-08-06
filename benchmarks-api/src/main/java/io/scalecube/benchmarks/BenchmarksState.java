@@ -329,24 +329,27 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
             int schedulerIndex = (int) ((rampUpIteration & Long.MAX_VALUE) % schedulers().size());
             Scheduler scheduler = schedulers().get(schedulerIndex);
 
-            // create tasks on selected scheduler
-            Flux<T> setUpFactory = Flux.create((FluxSink<T> sink) -> {
-              Flux<T> deferSetUp = Flux.defer(() -> setUp.apply(rampUpIteration, self));
-              deferSetUp.subscribe(
-                  sink::next,
-                  ex -> {
-                    LOGGER.error("Exception occured on setUp at rampUpIteration: {}, "
-                        + "cause: {}, task won't start", rampUpIteration, ex);
-                    sink.complete();
-                  },
-                  sink::complete);
-            });
-            return setUpFactory
-                .subscribeOn(scheduler)
-                .map(setUpResult -> new BenchmarksTask<>(self, setUpResult, unitOfWork, cleanUp, scheduler))
-                .doOnNext(scheduler::schedule)
-                .flatMap(BenchmarksTask::completionMono);
-
+            return Flux
+                .range(0, Math.max(1, settings.injectorsPerRampUpInterval()))
+                .flatMap(iteration1 -> {
+                  // create tasks on selected scheduler
+                  Flux<T> setUpFactory = Flux.create((FluxSink<T> sink) -> {
+                    Flux<T> deferSetUp = Flux.defer(() -> setUp.apply(rampUpIteration, self));
+                    deferSetUp.subscribe(
+                        sink::next,
+                        ex -> {
+                          LOGGER.error("Exception occured on setUp at rampUpIteration: {}, "
+                              + "cause: {}, task won't start", rampUpIteration, ex);
+                          sink.complete();
+                        },
+                        sink::complete);
+                  });
+                  return setUpFactory
+                      .subscribeOn(scheduler)
+                      .map(setUpResult -> new BenchmarksTask<>(self, setUpResult, unitOfWork, cleanUp, scheduler))
+                      .doOnNext(scheduler::schedule)
+                      .flatMap(BenchmarksTask::completionMono);
+                });
           }, Integer.MAX_VALUE, Integer.MAX_VALUE)
           .blockLast();
     } finally {

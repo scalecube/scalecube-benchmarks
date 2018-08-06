@@ -81,7 +81,9 @@ public class BenchmarksTask<SELF extends BenchmarksState<SELF>, T> implements Ru
     if (isScheduled()) { // executing
       long iter = iterationsCounter.incrementAndGet();
 
-      Flux.from(unitOfWork.apply(iter, setUpResult))
+      Flux
+          .range(0, Math.max(1, benchmarksState.settings.messagesPerExecutionInterval()))
+          .flatMap(iteration1 -> Flux.from(unitOfWork.apply(iter, setUpResult)))
           .doOnError(ex -> LOGGER.warn("Exception occured on unitOfWork at iteration: {}, cause: {}", iter, ex))
           .subscribe();
 
