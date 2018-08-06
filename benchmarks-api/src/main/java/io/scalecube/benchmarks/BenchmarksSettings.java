@@ -209,8 +209,8 @@ public class BenchmarksSettings {
     private Duration rampUpDuration = RAMP_UP_DURATION;
     private boolean consoleReporterEnabled = CONSOLE_REPORTER_ENABLED;
     private int injectors;
-    private int messageRate;
     private String[] args = new String[] {};
+    private int messageRate;
     // dynamic params
     private Duration rampUpInterval;
     private int injectorsPerRampUpInterval;
@@ -299,6 +299,21 @@ public class BenchmarksSettings {
       return this;
     }
 
+    public Builder injectorsPerRampUpInterval(int injectorsPerRampUpInterval) {
+      this.injectorsPerRampUpInterval = injectorsPerRampUpInterval;
+      return this;
+    }
+
+    public Builder rampUpInterval(Duration rampUpInterval) {
+      this.rampUpInterval = rampUpInterval;
+      return this;
+    }
+
+    public Builder messagesPerExecutionInterval(int messagesPerExecutionInterval) {
+      this.messagesPerExecutionInterval = messagesPerExecutionInterval;
+      return this;
+    }
+
     public BenchmarksSettings build() {
       return new BenchmarksSettings(new Builder(this).parseArgs().calculateDynamicParams());
     }
@@ -309,9 +324,11 @@ public class BenchmarksSettings {
       if (injectors <= 0 && messageRate <= 0) {
         return this;
       }
+
       if (rampUpDuration.isZero()) {
         throw new IllegalStateException("'rampUpDuration' must be greater than 0");
       }
+
       if (rampUpDuration.compareTo(executionTaskDuration) > 0) {
         throw new IllegalStateException("'rampUpDuration' must be greater than 'executionTaskDuration'");
       }
@@ -372,26 +389,38 @@ public class BenchmarksSettings {
             case "messageRate":
               messageRate(Integer.parseInt(value));
               break;
-            case "nThreads":
-              nThreads(Integer.parseInt(value));
-              break;
             case "executionTaskDurationInSec":
               executionTaskDuration(Duration.ofSeconds(Long.parseLong(value)));
-              break;
-            case "executionTaskIntervalInMillis":
-              executionTaskInterval(Duration.ofMillis(Long.parseLong(value)));
-              break;
-            case "reporterIntervalInSec":
-              reporterInterval(Duration.ofSeconds(Long.parseLong(value)));
-              break;
-            case "numOfIterations":
-              numOfIterations(Long.parseLong(value));
               break;
             case "rampUpDurationInSec":
               rampUpDuration(Duration.ofSeconds(Long.parseLong(value)));
               break;
+
+            case "injectorsPerRampUpInterval":
+              injectorsPerRampUpInterval(Integer.parseInt(value));
+              break;
+            case "rampUpIntervalInMillis":
+              rampUpInterval(Duration.ofMillis(Long.parseLong(value)));
+              break;
+            case "executionTaskIntervalInMillis":
+              executionTaskInterval(Duration.ofMillis(Long.parseLong(value)));
+              break;
+            case "messagesPerExecutionInterval":
+              messagesPerExecutionInterval(Integer.parseInt(value));
+              break;
+
+            case "numOfIterations":
+              numOfIterations(Long.parseLong(value));
+              break;
+
             case "consoleReporterEnabled":
               consoleReporterEnabled(Boolean.parseBoolean(value));
+              break;
+            case "reporterIntervalInSec":
+              reporterInterval(Duration.ofSeconds(Long.parseLong(value)));
+              break;
+            case "nThreads":
+              nThreads(Integer.parseInt(value));
               break;
             default:
               addOption(key, value);
