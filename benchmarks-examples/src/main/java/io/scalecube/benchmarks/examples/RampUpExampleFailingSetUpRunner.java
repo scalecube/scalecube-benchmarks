@@ -21,6 +21,7 @@ public class RampUpExampleFailingSetUpRunner {
         .rampUpDuration(Duration.ofSeconds(10))
         .rampUpInterval(Duration.ofSeconds(1))
         .executionTaskDuration(Duration.ofSeconds(30))
+        .executionTaskInterval(Duration.ZERO)
         .durationUnit(TimeUnit.NANOSECONDS)
         .build();
 
