@@ -9,7 +9,8 @@
     <RollingFile name="FILE"
                  fileName="reports/benchmarks.log"
                  filePattern="reports/benchmarks-%d{yyyy-MM-dd-HH}-%i.log"
-                 ignoreExceptions="false">
+                 ignoreExceptions="false"
+                 immediateFlush="false">
       <PatternLayout pattern="${patternLayout}"/>
       <Policies>
         <OnStartupTriggeringPolicy/>
