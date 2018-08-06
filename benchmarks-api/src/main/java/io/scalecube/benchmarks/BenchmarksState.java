@@ -309,7 +309,7 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
    * @param cleanUp a function that should clean up some T's resources.
    */
   public final <T> void runWithRampUp(
-      BiFunction<Long, SELF, Mono<T>> setUp,
+      BiFunction<Long, SELF, Publisher<T>> setUp,
       Function<SELF, BiFunction<Long, T, Publisher<?>>> func,
       BiFunction<SELF, T, Mono<Void>> cleanUp) {
 
@@ -328,8 +328,9 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
             // select scheduler and bind tasks to it
             int schedulerIndex = (int) ((rampUpIteration & Long.MAX_VALUE) % schedulers().size());
             Scheduler scheduler = schedulers().get(schedulerIndex);
+
             return Flux
-                .range(0, settings.injectorsPerRampUpInterval())
+                .range(0, Math.max(1, settings.injectorsPerRampUpInterval()))
                 .flatMap(iteration1 -> {
                   // create tasks on selected scheduler
                   Flux<T> setUpFactory = Flux.create((FluxSink<T> sink) -> {
@@ -349,9 +350,6 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
                       .doOnNext(scheduler::schedule)
                       .flatMap(BenchmarksTask::completionMono);
                 });
-
-
-
           }, Integer.MAX_VALUE, Integer.MAX_VALUE)
           .blockLast();
     } finally {

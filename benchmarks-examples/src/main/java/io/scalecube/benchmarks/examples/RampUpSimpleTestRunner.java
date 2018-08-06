@@ -53,6 +53,7 @@ public class RampUpSimpleTestRunner {
 
   private static void heavy() {
     for (int i = 0; i < 100; i++) {
+      // noinspection ResultOfMethodCallIgnored
       Math.hypot(20, 29 + i);
     }
   }

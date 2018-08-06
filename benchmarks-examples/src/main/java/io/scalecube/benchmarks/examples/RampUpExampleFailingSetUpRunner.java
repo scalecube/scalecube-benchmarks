@@ -19,7 +19,9 @@ public class RampUpExampleFailingSetUpRunner {
   public static void main(String[] args) {
     BenchmarksSettings settings = BenchmarksSettings.from(args)
         .rampUpDuration(Duration.ofSeconds(10))
+        .rampUpInterval(Duration.ofSeconds(1))
         .executionTaskDuration(Duration.ofSeconds(30))
+        .executionTaskInterval(Duration.ZERO)
         .durationUnit(TimeUnit.NANOSECONDS)
         .build();
 
