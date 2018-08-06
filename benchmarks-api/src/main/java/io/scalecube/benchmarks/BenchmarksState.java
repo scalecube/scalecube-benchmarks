@@ -329,7 +329,7 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
             int schedulerIndex = (int) ((rampUpIteration & Long.MAX_VALUE) % schedulers().size());
             Scheduler scheduler = schedulers().get(schedulerIndex);
             return Flux
-                .range(0, settings.usersPerRampUpInterval())
+                .range(0, settings.injectorsPerRampUpInterval())
                 .flatMap(iteration1 -> {
                   // create tasks on selected scheduler
                   Flux<T> setUpFactory = Flux.create((FluxSink<T> sink) -> {

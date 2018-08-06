@@ -12,7 +12,7 @@ class BenchmarksSettingsTest {
   @Test
   void testOneUserAndSevenMsgRate() {
     BenchmarksSettings settings = BenchmarksSettings.from(EMPTY_ARGS)
-        .users(1)
+        .injectors(1)
         .messageRate(7)
         .executionTaskDuration(Duration.ofSeconds(10))
         .executionTaskInterval(Duration.ofSeconds(3))
@@ -22,7 +22,7 @@ class BenchmarksSettingsTest {
     assertEquals(Duration.ofSeconds(10), settings.rampUpInterval());
     assertEquals(Duration.ofMillis(100), settings.executionTaskInterval());
     assertEquals(Duration.ofSeconds(10), settings.executionTaskDuration());
-    assertEquals(1, settings.usersPerRampUpInterval());
+    assertEquals(1, settings.injectorsPerRampUpInterval());
     assertEquals(1, settings.messagesPerExecutionInterval());
   }
 }

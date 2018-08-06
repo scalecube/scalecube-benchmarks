@@ -17,7 +17,7 @@ public class RampUpSimpleTestRunner {
    */
   public static void main(String[] args) {
     BenchmarksSettings settings = BenchmarksSettings.from(args)
-        .users(1000)
+        .injectors(1000)
         .messageRate(10_000)
         .rampUpDuration(Duration.ofSeconds(15))
         .executionTaskDuration(Duration.ofSeconds(30))

@@ -42,12 +42,12 @@ public class BenchmarksSettings {
   private final long numOfIterations;
   private final Duration rampUpDuration;
   private final boolean consoleReporterEnabled;
-  private final int users;
+  private final int injectors;
   private final int messageRate;
 
   private final Duration executionTaskInterval;
   private final Duration rampUpInterval;
-  private final int usersPerRampUpInterval;
+  private final int injectorsPerRampUpInterval;
   private final int messagesPerExecutionInterval;
 
   private final Map<String, String> options;
@@ -70,9 +70,9 @@ public class BenchmarksSettings {
     this.rateUnit = builder.rateUnit;
     this.executionTaskInterval = builder.executionTaskInterval;
     this.rampUpInterval = builder.rampUpInterval;
-    this.usersPerRampUpInterval = builder.usersPerRampUpInterval;
+    this.injectorsPerRampUpInterval = builder.injectorsPerRampUpInterval;
     this.messagesPerExecutionInterval = builder.messagesPerExecutionInterval;
-    this.users = builder.users;
+    this.injectors = builder.injectors;
     this.messageRate = builder.messageRate;
 
     this.registry = new MetricRegistry();
@@ -97,8 +97,8 @@ public class BenchmarksSettings {
     return rampUpInterval;
   }
 
-  public int usersPerRampUpInterval() {
-    return usersPerRampUpInterval;
+  public int injectorsPerRampUpInterval() {
+    return injectorsPerRampUpInterval;
   }
 
   public int messagesPerExecutionInterval() {
@@ -157,8 +157,8 @@ public class BenchmarksSettings {
     return consoleReporterEnabled;
   }
 
-  public int users() {
-    return users;
+  public int injectors() {
+    return injectors;
   }
 
   public int messageRate() {
@@ -183,11 +183,11 @@ public class BenchmarksSettings {
     sb.append(", numOfIterations=").append(numOfIterations);
     sb.append(", rampUpDuration=").append(rampUpDuration);
     sb.append(", consoleReporterEnabled=").append(consoleReporterEnabled);
-    sb.append(", users=").append(users);
+    sb.append(", injectors=").append(injectors);
     sb.append(", messageRate=").append(messageRate);
     sb.append(", executionTaskInterval=").append(executionTaskInterval);
     sb.append(", rampUpInterval=").append(rampUpInterval);
-    sb.append(", usersPerRampUpInterval=").append(usersPerRampUpInterval);
+    sb.append(", injectorsPerRampUpInterval=").append(injectorsPerRampUpInterval);
     sb.append(", messagesPerExecutionInterval=").append(messagesPerExecutionInterval);
     sb.append(", options=").append(options);
     sb.append('}');
@@ -195,7 +195,7 @@ public class BenchmarksSettings {
   }
 
   public static class Builder {
-    private static final int DEFAULT_USERS = 1000;
+    private static final int DEFAULT_INJECTORS = 1000;
     private static final int DEFAULT_MESSAGE_RATE = 1000;
     private final Map<String, String> options;
 
@@ -208,12 +208,12 @@ public class BenchmarksSettings {
     private long numOfIterations = NUM_OF_ITERATIONS;
     private Duration rampUpDuration = RAMP_UP_DURATION;
     private boolean consoleReporterEnabled = CONSOLE_REPORTER_ENABLED;
-    private int users;
+    private int injectors;
     private int messageRate;
     private String[] args = new String[] {};
     // dynamic params
     private Duration rampUpInterval;
-    private int usersPerRampUpInterval;
+    private int injectorsPerRampUpInterval;
     private int messagesPerExecutionInterval;
 
     private Builder() {
@@ -233,9 +233,9 @@ public class BenchmarksSettings {
       this.consoleReporterEnabled = that.consoleReporterEnabled;
       this.args = that.args;
       this.rampUpInterval = that.rampUpInterval;
-      this.usersPerRampUpInterval = that.usersPerRampUpInterval;
+      this.injectorsPerRampUpInterval = that.injectorsPerRampUpInterval;
       this.messagesPerExecutionInterval = that.messagesPerExecutionInterval;
-      this.users = that.users;
+      this.injectors = that.injectors;
       this.messageRate = that.messageRate;
     }
 
@@ -289,8 +289,8 @@ public class BenchmarksSettings {
       return this;
     }
 
-    public Builder users(int users) {
-      this.users = users;
+    public Builder injectors(int injectors) {
+      this.injectors = injectors;
       return this;
     }
 
@@ -304,9 +304,9 @@ public class BenchmarksSettings {
     }
 
     private Builder calculateDynamicParams() {
-      // if no "users specified - don't calculate, means we are
+      // if no "injectors specified - don't calculate, means we are
       // running another type of scenario and don't want to overload any parameters
-      if (users <= 0 && messageRate <= 0) {
+      if (injectors <= 0 && messageRate <= 0) {
         return this;
       }
       if (rampUpDuration.isZero()) {
@@ -316,8 +316,8 @@ public class BenchmarksSettings {
         throw new IllegalStateException("'rampUpDuration' must be greater than 'executionTaskDuration'");
       }
 
-      if (users <= 0) {
-        users = DEFAULT_USERS;
+      if (injectors <= 0) {
+        injectors = DEFAULT_INJECTORS;
       }
       if (messageRate <= 0) {
         messageRate = DEFAULT_MESSAGE_RATE;
@@ -326,33 +326,33 @@ public class BenchmarksSettings {
       // calculate rampup parameters
       long rampUpDurationMillis = this.rampUpDuration.toMillis();
 
-      if (rampUpDurationMillis / users >= MINIMAL_INTERVAL.toMillis()) {
-        // 1. Can provide rampup injecting 1 user per minimal interval
-        this.usersPerRampUpInterval = 1;
-        this.rampUpInterval = Duration.ofMillis(rampUpDurationMillis / users);
+      if (rampUpDurationMillis / injectors >= MINIMAL_INTERVAL.toMillis()) {
+        // 1. Can provide rampup injecting 1 injector per minimal interval
+        this.injectorsPerRampUpInterval = 1;
+        this.rampUpInterval = Duration.ofMillis(rampUpDurationMillis / injectors);
       } else {
-        // 2. Need to inject multiple users per minimal interval to provide rampup
+        // 2. Need to inject multiple injectors per minimal interval to provide rampup
         long intervals = Math.floorDiv(rampUpDurationMillis, MINIMAL_INTERVAL.toMillis());
-        this.usersPerRampUpInterval = (int) Math.floorDiv(users, intervals);
+        this.injectorsPerRampUpInterval = (int) Math.floorDiv(injectors, intervals);
         this.rampUpInterval = MINIMAL_INTERVAL;
       }
 
       // calculate execution parameters
-      double userRate = (double) messageRate / users;
-      if (userRate <= 1) {
-        // 1. Enough users to provide the required rate sending each user 1 msg per (>= 1 second)
+      double injectorRate = (double) messageRate / injectors;
+      if (injectorRate <= 1) {
+        // 1. Enough injectors to provide the required rate sending each injector 1 msg per (>= 1 second)
         this.messagesPerExecutionInterval = 1;
-        this.executionTaskInterval = Duration.ofMillis((long) (1000 / userRate));
+        this.executionTaskInterval = Duration.ofMillis((long) (1000 / injectorRate));
       } else {
-        int maxUsersLoad = (int) Math.floorDiv(users * 1000, MINIMAL_INTERVAL.toMillis());
-        if (maxUsersLoad >= messageRate) {
+        int maxInjectorsLoad = (int) Math.floorDiv(injectors * 1000, MINIMAL_INTERVAL.toMillis());
+        if (maxInjectorsLoad >= messageRate) {
           // 2. Still can provide the required rate sending 1 mesg per tick, execution interval = [MIN_INTERVAL, 1 sec]
           this.messagesPerExecutionInterval = 1;
           this.executionTaskInterval =
-              Duration.ofMillis(Math.floorDiv(maxUsersLoad, messageRate) * MINIMAL_INTERVAL.toMillis());
+              Duration.ofMillis(Math.floorDiv(maxInjectorsLoad, messageRate) * MINIMAL_INTERVAL.toMillis());
         } else {
           // 3. Have to send multiple messages per execution interval , interval already minimum (MIN_INTERVAL)
-          this.messagesPerExecutionInterval = Math.floorDiv(messageRate, maxUsersLoad);
+          this.messagesPerExecutionInterval = Math.floorDiv(messageRate, maxInjectorsLoad);
           this.executionTaskInterval = MINIMAL_INTERVAL;
         }
       }
@@ -366,8 +366,8 @@ public class BenchmarksSettings {
           String key = keyValue[0];
           String value = keyValue[1];
           switch (key) {
-            case "users":
-              users(Integer.parseInt(value));
+            case "injectors":
+              injectors(Integer.parseInt(value));
               break;
             case "messageRate":
               messageRate(Integer.parseInt(value));

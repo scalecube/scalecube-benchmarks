@@ -19,7 +19,7 @@ public class RampUpExampleBenchmarksRunner {
   public static void main(String[] args) {
     BenchmarksSettings settings = BenchmarksSettings.from(args)
         .rampUpDuration(Duration.ofSeconds(30))
-        .users(10_000)
+        .injectors(10_000)
         .messageRate(50_000)
         .executionTaskDuration(Duration.ofSeconds(30))
         .durationUnit(TimeUnit.NANOSECONDS)
