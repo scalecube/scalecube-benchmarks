@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<Configuration status="WARN" packages="io.scalecube.benchmarks.log4j2">
+<Configuration status="OFF">
 
   <Properties>
     <Property name="patternLayout">%level{length=1} %d{ISO8601} %c{1.} %m [%t]%n</Property>
@@ -18,11 +18,16 @@
       </Policies>
       <DefaultRolloverStrategy max="1000"/>
     </RollingFile>
+
+    <Async name="ASYNC" includeLocation="true">
+      <AppenderRef ref="FILE"/>
+      <DisruptorBlockingQueue/>
+    </Async>
   </Appenders>
 
   <Loggers>
     <Root level="${env:logLevel:-info}">
-      <AppenderRef ref="FILE"/>
+      <AppenderRef ref="ASYNC"/>
     </Root>
   </Loggers>
 
