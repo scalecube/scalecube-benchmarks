@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="WARN">
+
+  <Properties>
+    <Property name="patternLayout">%level{length=1} %d{ISO8601} %c{1.} %m [%t]%n</Property>
+  </Properties>
+
+  <Appenders>
+    <RollingFile name="FILE"
+                 fileName="reports/benchmarks.log"
+                 filePattern="reports/benchmarks-%d{yyyy-MM-dd-HH}-%i.log"
+                 ignoreExceptions="false"
+                 immediateFlush="true">
+      <PatternLayout pattern="${patternLayout}"/>
+      <Policies>
+        <OnStartupTriggeringPolicy/>
+        <TimeBasedTriggeringPolicy/>
+        <SizeBasedTriggeringPolicy size="50MB"/>
+      </Policies>
+      <DefaultRolloverStrategy max="1000"/>
+    </RollingFile>
+  </Appenders>
+
+  <Loggers>
+    <AsyncRoot level="${env:logLevel:-info}">
+      <AppenderRef ref="FILE"/>
+    </AsyncRoot>
+  </Loggers>
+
+</Configuration>
