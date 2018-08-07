@@ -21,14 +21,11 @@ import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.slf4j.MDC;
 
 import java.time.Duration;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiFunction;
@@ -36,7 +33,6 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.LongStream;
-
 
 /**
  * BenchmarksState is the state of the benchmark. it gives you the analogy of the beginning, and ending of the test. It
@@ -56,8 +52,6 @@ import java.util.stream.LongStream;
 public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(BenchmarksState.class);
-
-  private static final String MDC_BENCHMARK_DIR = "benchmarkDir";
 
   protected final BenchmarksSettings settings;
 
@@ -89,8 +83,6 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
       throw new IllegalStateException("BenchmarksState is already started");
     }
 
-    MDC.put(MDC_BENCHMARK_DIR, settings.csvReporterDirectory().toString());
-
     LOGGER.info("Benchmarks settings: " + settings);
 
     if (settings.consoleReporterEnabled()) {
@@ -107,11 +99,11 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
         .build(settings.csvReporterDirectory());
 
     scheduler = Schedulers.fromExecutor(
-        Executors.newFixedThreadPool(settings.nThreads(), newThreadFactory()));
+        Executors.newFixedThreadPool(settings.nThreads()));
 
     schedulers = IntStream.rangeClosed(1, settings.nThreads())
         .mapToObj(i -> Schedulers.fromExecutorService(
-            Executors.newSingleThreadScheduledExecutor(newThreadFactory())))
+            Executors.newSingleThreadScheduledExecutor()))
         .collect(Collectors.toList());
 
     try {
@@ -170,8 +162,6 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
       afterAll();
     } catch (Exception ex) {
       throw new IllegalStateException("BenchmarksState afterAll() failed: " + ex, ex);
-    } finally {
-      MDC.remove(MDC_BENCHMARK_DIR);
     }
   }
 
@@ -355,25 +345,5 @@ public class BenchmarksState<SELF extends BenchmarksState<SELF>> {
     } finally {
       self.shutdown();
     }
-  }
-
-  private ThreadFactory newThreadFactory() {
-    return runnable -> {
-      Map<String, String> mdcCopy = MDC.getCopyOfContextMap();
-
-      return new Thread(runnable) {
-
-        private boolean mdcWasSet;
-
-        @Override
-        public void run() {
-          if (!mdcWasSet) {
-            MDC.setContextMap(mdcCopy);
-            mdcWasSet = true;
-          }
-          super.run();
-        }
-      };
-    };
   }
 }
