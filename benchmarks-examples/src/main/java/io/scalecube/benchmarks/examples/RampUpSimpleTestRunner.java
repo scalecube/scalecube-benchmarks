@@ -17,10 +17,10 @@ public class RampUpSimpleTestRunner {
    */
   public static void main(String[] args) {
     BenchmarksSettings settings = BenchmarksSettings.from(args)
-        .injectors(1000)
-        .messageRate(10_000)
-        .rampUpDuration(Duration.ofSeconds(15))
-        .executionTaskDuration(Duration.ofSeconds(30))
+        .injectors(5)
+        .messageRate(5)
+        .rampUpDuration(Duration.ofSeconds(5))
+        .executionTaskDuration(Duration.ofSeconds(10))
         .consoleReporterEnabled(false)
         .durationUnit(TimeUnit.NANOSECONDS)
         .build();
@@ -32,20 +32,19 @@ public class RampUpSimpleTestRunner {
     new ExampleServiceBenchmarksState(settings).runWithRampUp(
         // set up
         (rampUpIteration, state) -> {
-          // System.out.println(LocalDateTime.now() + " User started: " + rampUpIteration);
+          System.out.println(LocalDateTime.now() + " User started: " + rampUpIteration);
           return Mono.just(rampUpIteration);
         },
 
         // job
         state -> (iteration, userId) -> {
-          // System.out.println(LocalDateTime.now() + " User: " + userId + " | iteration: " + iteration);
-          ;
+          System.out.println(LocalDateTime.now() + " User: " + userId + " | iteration: " + iteration);;
           return Mono.fromRunnable(RampUpSimpleTestRunner::heavy);
         },
 
         // teardown
         (state, userId) -> {
-          // System.out.println(LocalDateTime.now() + " User done:" + userId);
+          System.out.println(LocalDateTime.now() + " User done:" + userId);
           return Mono.empty();
         });
     System.out.println(LocalDateTime.now() + " Test over");
