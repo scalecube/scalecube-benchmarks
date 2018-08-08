@@ -38,7 +38,7 @@ public class RampUpSimpleTestRunner {
 
         // job
         state -> (iteration, userId) -> {
-          System.out.println(LocalDateTime.now() + " User: " + userId + " | iteration: " + iteration);;
+          System.out.println(LocalDateTime.now() + " User: " + userId + " | iteration: " + iteration);
           return Mono.fromRunnable(RampUpSimpleTestRunner::heavy);
         },
 
