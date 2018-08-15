@@ -1,15 +1,12 @@
 package io.scalecube.benchmarks.examples;
 
 import io.scalecube.benchmarks.BenchmarksSettings;
-
-import reactor.core.publisher.Mono;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.concurrent.TimeUnit;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import reactor.core.publisher.Mono;
 
 public class RampUpSimpleTestRunner {
 
@@ -21,33 +18,36 @@ public class RampUpSimpleTestRunner {
    * @param args command line args
    */
   public static void main(String[] args) {
-    BenchmarksSettings settings = BenchmarksSettings.from(args)
-        .injectors(5)
-        .messageRate(5)
-        .rampUpDuration(Duration.ofSeconds(5))
-        .executionTaskDuration(Duration.ofSeconds(10))
-        .consoleReporterEnabled(false)
-        .durationUnit(TimeUnit.NANOSECONDS)
-        .build();
+    BenchmarksSettings settings =
+        BenchmarksSettings.from(args)
+            .injectors(5)
+            .messageRate(5)
+            .rampUpDuration(Duration.ofSeconds(5))
+            .executionTaskDuration(Duration.ofSeconds(10))
+            .consoleReporterEnabled(false)
+            .durationUnit(TimeUnit.NANOSECONDS)
+            .build();
 
-    new ExampleServiceBenchmarksState(settings).runWithRampUp(
-        // set up
-        (rampUpIteration, state) -> {
-          LOGGER.info("User started: " + rampUpIteration);
-          return Mono.just(rampUpIteration);
-        },
+    new ExampleServiceBenchmarksState(settings)
+        .runWithRampUp(
+            // set up
+            (rampUpIteration, state) -> {
+              LOGGER.info("User started: " + rampUpIteration);
+              return Mono.just(rampUpIteration);
+            },
 
-        // job
-        state -> (iteration, userId) -> {
-          LOGGER.info("User: " + userId + " | iteration: " + iteration);
-          return Mono.fromRunnable(RampUpSimpleTestRunner::heavy);
-        },
+            // job
+            state ->
+                (iteration, userId) -> {
+                  LOGGER.info("User: " + userId + " | iteration: " + iteration);
+                  return Mono.fromRunnable(RampUpSimpleTestRunner::heavy);
+                },
 
-        // teardown
-        (state, userId) -> {
-          LOGGER.info("User done:" + userId);
-          return Mono.empty();
-        });
+            // teardown
+            (state, userId) -> {
+              LOGGER.info("User done:" + userId);
+              return Mono.empty();
+            });
     System.out.println(LocalDateTime.now() + " Test over");
   }
 

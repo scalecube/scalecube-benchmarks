@@ -11,8 +11,8 @@
     </Console>
 
     <RollingFile name="FILE"
-                 fileName="reports/benchmarks.log"
-                 filePattern="reports/benchmarks-%d{yyyy-MM-dd-HH}-%i.log">
+      fileName="reports/benchmarks.log"
+      filePattern="reports/benchmarks-%d{yyyy-MM-dd-HH}-%i.log">
       <PatternLayout pattern="${patternLayout}"/>
       <Policies>
         <OnStartupTriggeringPolicy/>

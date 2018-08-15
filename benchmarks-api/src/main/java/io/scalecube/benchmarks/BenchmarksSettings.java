@@ -1,7 +1,6 @@
 package io.scalecube.benchmarks;
 
 import com.codahale.metrics.MetricRegistry;
-
 import java.io.File;
 import java.nio.file.Paths;
 import java.time.Duration;
@@ -29,9 +28,10 @@ public class BenchmarksSettings {
   private static final Duration RAMP_UP_INTERVAL = Duration.ofSeconds(1);
   private static final boolean CONSOLE_REPORTER_ENABLED = true;
   private static final String ALIAS_PATTERN = "^[.a-zA-Z_0-9]+$";
-  private static final Predicate<String> ALIAS_PREDICATE = Pattern.compile(ALIAS_PATTERN).asPredicate();
+  private static final Predicate<String> ALIAS_PREDICATE =
+      Pattern.compile(ALIAS_PATTERN).asPredicate();
 
-  private final int nThreads;
+  private final int numberThreads;
   private final Duration executionTaskDuration;
   private final Duration executionTaskInterval;
   private final Duration reporterInterval;
@@ -51,6 +51,11 @@ public class BenchmarksSettings {
 
   private final Map<String, String> options;
 
+  /**
+   * Parses array of command line parameters to override settings that are already defined.
+   *
+   * @param args - array of command line arguments.
+   */
   public static Builder from(String[] args) {
     Builder builder = new Builder();
     builder.args = args;
@@ -58,7 +63,7 @@ public class BenchmarksSettings {
   }
 
   private BenchmarksSettings(Builder builder) {
-    this.nThreads = builder.nThreads;
+    this.numberThreads = builder.numberThreads;
     this.executionTaskDuration = builder.executionTaskDuration;
     this.executionTaskInterval = builder.executionTaskInterval;
     this.reporterInterval = builder.reporterInterval;
@@ -79,12 +84,14 @@ public class BenchmarksSettings {
     StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
     this.taskName = minifyClassName(stackTrace[stackTrace.length - 1].getClassName());
 
-    String time = LocalDateTime.ofInstant(Instant.now(), ZoneOffset.UTC)
-        .format(DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm-ss"));
+    String time =
+        LocalDateTime.ofInstant(Instant.now(), ZoneOffset.UTC)
+            .format(DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm-ss"));
 
     String alias = find("alias", taskName);
     if (!ALIAS_PREDICATE.test(alias)) {
-      throw new IllegalArgumentException("alias '" + alias + "' must match pattern " + ALIAS_PATTERN);
+      throw new IllegalArgumentException(
+          "alias '" + alias + "' must match pattern " + ALIAS_PATTERN);
     }
 
     this.csvReporterDirectory = Paths.get("reports", "benchmarks", alias, time).toFile();
@@ -92,8 +99,8 @@ public class BenchmarksSettings {
     this.csvReporterDirectory.mkdirs();
   }
 
-  public int nThreads() {
-    return nThreads;
+  public int numberThreads() {
+    return numberThreads;
   }
 
   public Duration executionTaskDuration() {
@@ -167,7 +174,7 @@ public class BenchmarksSettings {
   @Override
   public String toString() {
     final StringBuilder sb = new StringBuilder("BenchmarksSettings{");
-    sb.append("nThreads=").append(nThreads);
+    sb.append("numberThreads=").append(numberThreads);
     sb.append(", executionTaskDuration=").append(executionTaskDuration);
     sb.append(", executionTaskInterval=").append(executionTaskInterval);
     sb.append(", numOfIterations=").append(numOfIterations);
@@ -196,7 +203,7 @@ public class BenchmarksSettings {
   public static class Builder {
     private final Map<String, String> options;
 
-    private int nThreads = N_THREADS;
+    private int numberThreads = N_THREADS;
     private Duration executionTaskDuration = EXECUTION_TASK_DURATION;
     private Duration executionTaskInterval = EXECUTION_TASK_INTERVAL;
     private Duration reporterInterval = REPORTER_INTERVAL;
@@ -218,7 +225,7 @@ public class BenchmarksSettings {
 
     private Builder(Builder that) {
       this.options = that.options;
-      this.nThreads = that.nThreads;
+      this.numberThreads = that.numberThreads;
       this.executionTaskDuration = that.executionTaskDuration;
       this.executionTaskInterval = that.executionTaskInterval;
       this.reporterInterval = that.reporterInterval;
@@ -235,8 +242,8 @@ public class BenchmarksSettings {
       this.messageRate = that.messageRate;
     }
 
-    public Builder nThreads(int numThreads) {
-      this.nThreads = numThreads;
+    public Builder numberThreads(int numThreads) {
+      this.numberThreads = numThreads;
       return this;
     }
 
@@ -322,7 +329,8 @@ public class BenchmarksSettings {
       }
 
       if (rampUpDuration.compareTo(executionTaskDuration) > 0) {
-        throw new IllegalArgumentException("'rampUpDuration' must be greater than 'executionTaskDuration'");
+        throw new IllegalArgumentException(
+            "'rampUpDuration' must be greater than 'executionTaskDuration'");
       }
 
       // calculate rampup parameters
@@ -342,18 +350,22 @@ public class BenchmarksSettings {
       // calculate execution parameters
       double injectorRate = (double) messageRate / injectors;
       if (injectorRate <= 1) {
-        // 1. Enough injectors to provide the required rate sending each injector 1 msg per (>= 1 second)
+        // 1. Enough injectors to provide the required rate sending each injector 1 msg per (>= 1
+        // second)
         this.messagesPerExecutionInterval = 1;
         this.executionTaskInterval = Duration.ofMillis((long) (1000 / injectorRate));
       } else {
         int maxInjectorsLoad = (int) Math.floorDiv(injectors * 1000, MINIMAL_INTERVAL.toMillis());
         if (maxInjectorsLoad >= messageRate) {
-          // 2. Still can provide the required rate sending 1 mesg per tick, execution interval = [MIN_INTERVAL, 1 sec]
+          // 2. Still can provide the required rate sending 1 mesg per tick, execution interval =
+          // [MIN_INTERVAL, 1 sec]
           this.messagesPerExecutionInterval = 1;
           this.executionTaskInterval =
-              Duration.ofMillis(Math.floorDiv(maxInjectorsLoad, messageRate) * MINIMAL_INTERVAL.toMillis());
+              Duration.ofMillis(
+                  Math.floorDiv(maxInjectorsLoad, messageRate) * MINIMAL_INTERVAL.toMillis());
         } else {
-          // 3. Have to send multiple messages per execution interval , interval already minimum (MIN_INTERVAL)
+          // 3. Have to send multiple messages per execution interval , interval already minimum
+          // (MIN_INTERVAL)
           this.messagesPerExecutionInterval = Math.floorDiv(messageRate, maxInjectorsLoad);
           this.executionTaskInterval = MINIMAL_INTERVAL;
         }
@@ -369,7 +381,7 @@ public class BenchmarksSettings {
           String value = keyValue[1];
           switch (key) {
             case "nThreads":
-              nThreads(Integer.parseInt(value));
+              numberThreads(Integer.parseInt(value));
               break;
             case "executionTaskDurationInSec":
               executionTaskDuration(Duration.ofSeconds(Long.parseLong(value)));
