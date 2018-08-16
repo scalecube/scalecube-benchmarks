@@ -19,7 +19,7 @@ public class RampUpExampleBenchmarksRunner {
             .rampUpDuration(Duration.ofSeconds(30))
             .injectors(10_000)
             .messageRate(50_000)
-            .executionTaskDuration(Duration.ofSeconds(30))
+            .scenarioDuration(Duration.ofSeconds(30))
             .durationUnit(TimeUnit.NANOSECONDS)
             .build();
 

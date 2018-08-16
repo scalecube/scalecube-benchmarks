@@ -17,7 +17,7 @@ import java.util.regex.Pattern;
 public class BenchmarksSettings {
 
   private static final int N_THREADS = Runtime.getRuntime().availableProcessors();
-  private static final Duration EXECUTION_TASK_DURATION = Duration.ofSeconds(60);
+  private static final Duration SCENARIO_DURATION = Duration.ofSeconds(60);
   private static final Duration EXECUTION_TASK_INTERVAL = Duration.ZERO;
   private static final Duration MINIMAL_INTERVAL = Duration.ofMillis(100);
   private static final Duration REPORTER_INTERVAL = Duration.ofSeconds(3);
@@ -32,7 +32,7 @@ public class BenchmarksSettings {
       Pattern.compile(ALIAS_PATTERN).asPredicate();
 
   private final int numberThreads;
-  private final Duration executionTaskDuration;
+  private final Duration scenarioDuration;
   private final Duration executionTaskInterval;
   private final Duration reporterInterval;
   private final File csvReporterDirectory;
@@ -64,7 +64,7 @@ public class BenchmarksSettings {
 
   private BenchmarksSettings(Builder builder) {
     this.numberThreads = builder.numberThreads;
-    this.executionTaskDuration = builder.executionTaskDuration;
+    this.scenarioDuration = builder.scenarioDuration;
     this.executionTaskInterval = builder.executionTaskInterval;
     this.reporterInterval = builder.reporterInterval;
     this.numOfIterations = builder.numOfIterations;
@@ -103,8 +103,8 @@ public class BenchmarksSettings {
     return numberThreads;
   }
 
-  public Duration executionTaskDuration() {
-    return executionTaskDuration;
+  public Duration scenarioDuration() {
+    return scenarioDuration;
   }
 
   public Duration executionTaskInterval() {
@@ -175,7 +175,7 @@ public class BenchmarksSettings {
   public String toString() {
     final StringBuilder sb = new StringBuilder("BenchmarksSettings{");
     sb.append("numberThreads=").append(numberThreads);
-    sb.append(", executionTaskDuration=").append(executionTaskDuration);
+    sb.append(", scenarioDuration=").append(scenarioDuration);
     sb.append(", executionTaskInterval=").append(executionTaskInterval);
     sb.append(", numOfIterations=").append(numOfIterations);
     sb.append(", reporterInterval=").append(reporterInterval);
@@ -204,7 +204,7 @@ public class BenchmarksSettings {
     private final Map<String, String> options;
 
     private int numberThreads = N_THREADS;
-    private Duration executionTaskDuration = EXECUTION_TASK_DURATION;
+    private Duration scenarioDuration = SCENARIO_DURATION;
     private Duration executionTaskInterval = EXECUTION_TASK_INTERVAL;
     private Duration reporterInterval = REPORTER_INTERVAL;
     private TimeUnit durationUnit = DURATION_UNIT;
@@ -226,7 +226,7 @@ public class BenchmarksSettings {
     private Builder(Builder that) {
       this.options = that.options;
       this.numberThreads = that.numberThreads;
-      this.executionTaskDuration = that.executionTaskDuration;
+      this.scenarioDuration = that.scenarioDuration;
       this.executionTaskInterval = that.executionTaskInterval;
       this.reporterInterval = that.reporterInterval;
       this.durationUnit = that.durationUnit;
@@ -247,8 +247,8 @@ public class BenchmarksSettings {
       return this;
     }
 
-    public Builder executionTaskDuration(Duration executionTaskDuration) {
-      this.executionTaskDuration = executionTaskDuration;
+    public Builder scenarioDuration(Duration scenarioDuration) {
+      this.scenarioDuration = scenarioDuration;
       return this;
     }
 
@@ -328,9 +328,9 @@ public class BenchmarksSettings {
         throw new IllegalArgumentException("'rampUpDuration' must be greater than 0");
       }
 
-      if (rampUpDuration.compareTo(executionTaskDuration) > 0) {
+      if (rampUpDuration.compareTo(scenarioDuration) > 0) {
         throw new IllegalArgumentException(
-            "'rampUpDuration' must be greater than 'executionTaskDuration'");
+            "'rampUpDuration' must be greater than 'scenarioDuration'");
       }
 
       // calculate rampup parameters
@@ -383,8 +383,8 @@ public class BenchmarksSettings {
             case "nThreads":
               numberThreads(Integer.parseInt(value));
               break;
-            case "executionTaskDurationInSec":
-              executionTaskDuration(Duration.ofSeconds(Long.parseLong(value)));
+            case "scenarioDurationInSec":
+              scenarioDuration(Duration.ofSeconds(Long.parseLong(value)));
               break;
             case "executionTaskIntervalInMillis":
               executionTaskInterval(Duration.ofMillis(Long.parseLong(value)));

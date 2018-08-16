@@ -14,14 +14,14 @@ class BenchmarksSettingsTest {
         BenchmarksSettings.from(EMPTY_ARGS)
             .injectors(1)
             .messageRate(7)
-            .executionTaskDuration(Duration.ofSeconds(10))
+            .scenarioDuration(Duration.ofSeconds(10))
             .executionTaskInterval(Duration.ofSeconds(3))
             .build();
 
     assertEquals(Duration.ofSeconds(10), settings.rampUpDuration());
     assertEquals(Duration.ofSeconds(10), settings.rampUpInterval());
     assertEquals(Duration.ofMillis(100), settings.executionTaskInterval());
-    assertEquals(Duration.ofSeconds(10), settings.executionTaskDuration());
+    assertEquals(Duration.ofSeconds(10), settings.scenarioDuration());
     assertEquals(1, settings.injectorsPerRampUpInterval());
     assertEquals(1, settings.messagesPerExecutionInterval());
   }

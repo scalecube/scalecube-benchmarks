@@ -33,7 +33,7 @@ public class BenchmarksTask<S extends BenchmarksState<S>, T> implements Runnable
   private final BiFunction<Long, T, Publisher<?>> unitOfWork;
   private final BiFunction<S, T, Mono<Void>> cleanUp;
   private final long numOfIterations;
-  private final Duration executionTaskDuration;
+  private final Duration scenarioDuration;
   private final Duration executionTaskInterval;
   private final Scheduler scheduler;
 
@@ -63,7 +63,7 @@ public class BenchmarksTask<S extends BenchmarksState<S>, T> implements Runnable
     this.cleanUp = cleanUp;
     this.scheduler = scheduler;
     this.numOfIterations = benchmarksState.settings.numOfIterations();
-    this.executionTaskDuration = benchmarksState.settings.executionTaskDuration();
+    this.scenarioDuration = benchmarksState.settings.scenarioDuration();
     this.executionTaskInterval = benchmarksState.settings.executionTaskInterval();
   }
 
@@ -106,10 +106,10 @@ public class BenchmarksTask<S extends BenchmarksState<S>, T> implements Runnable
               () -> {
                 LOGGER.debug(
                     "Task is completing due to execution duration limit: "
-                        + executionTaskDuration.toMillis());
+                        + scenarioDuration.toMillis());
                 startCompleting();
               },
-              executionTaskDuration.toMillis(),
+              scenarioDuration.toMillis(),
               TimeUnit.MILLISECONDS));
 
       LOGGER.debug("Obtained setUp result: {}, now scheduling", setUpResult);
