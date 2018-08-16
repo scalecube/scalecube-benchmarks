@@ -312,62 +312,75 @@ public class BenchmarksSettings {
     }
 
     private Builder calculateDynamicParams() {
-      // if no "injectors specified - don't calculate, means we are
-      // running another type of scenario and don't want to overload any parameters
-      if (injectors <= 0 && messageRate <= 0) {
-        return this;
-      } else if (injectors <= 0) {
-        // specify both params
+      if (injectors == 0) {
+        injectors = N_THREADS;
+      }
+      if (messageRate == 0) {
+        messageRate = Integer.MAX_VALUE;
+      }
+
+      if (injectors < 0) {
         throw new IllegalArgumentException("'injectors' must be greater than 0");
-      } else if (messageRate <= 0) {
-        // specify both params
+      }
+      if (messageRate < 0) {
         throw new IllegalArgumentException("'messageRate' must be greater than 0");
       }
-
-      if (rampUpDuration.isZero()) {
-        throw new IllegalArgumentException("'rampUpDuration' must be greater than 0");
+      if (scenarioDuration.isZero() || scenarioDuration.isNegative()) {
+        throw new IllegalArgumentException("scenarioDuration not specified or incorrect");
       }
-
-      if (rampUpDuration.compareTo(scenarioDuration) > 0) {
-        throw new IllegalArgumentException(
-            "'rampUpDuration' must be greater than 'scenarioDuration'");
+      if (executionTaskInterval.isNegative()) {
+        throw new IllegalArgumentException("'executionTaskInterval' must be greater than 0");
       }
 
       // calculate rampup parameters
-      long rampUpDurationMillis = this.rampUpDuration.toMillis();
-
-      if (rampUpDurationMillis / injectors >= MINIMAL_INTERVAL.toMillis()) {
-        // 1. Can provide rampup injecting 1 injector per minimal interval
-        this.injectorsPerRampUpInterval = 1;
-        this.rampUpInterval = Duration.ofMillis(rampUpDurationMillis / injectors);
+      if (rampUpDuration.isNegative()) {
+        throw new IllegalArgumentException("'rampUpDuration' must be greater than 0");
+      } else if (rampUpDuration.isZero()) {
+        rampUpInterval = Duration.ZERO;
+        injectorsPerRampUpInterval = injectors;
       } else {
-        // 2. Need to inject multiple injectors per minimal interval to provide rampup
-        long intervals = Math.floorDiv(rampUpDurationMillis, MINIMAL_INTERVAL.toMillis());
-        this.injectorsPerRampUpInterval = (int) Math.floorDiv(injectors, intervals);
-        this.rampUpInterval = MINIMAL_INTERVAL;
+        if (rampUpDuration.compareTo(scenarioDuration) > 0) {
+          throw new IllegalArgumentException(
+              "'rampUpDuration' must be greater than 'scenarioDuration'");
+        }
+        long rampUpDurationMillis = this.rampUpDuration.toMillis();
+        if (rampUpDurationMillis / injectors >= MINIMAL_INTERVAL.toMillis()) {
+          // 1. Can provide rampup injecting 1 injector per minimal interval
+          injectorsPerRampUpInterval = 1;
+          rampUpInterval = Duration.ofMillis(rampUpDurationMillis / injectors);
+        } else {
+          // 2. Need to inject multiple injectors per minimal interval to provide rampup
+          long intervals = Math.floorDiv(rampUpDurationMillis, MINIMAL_INTERVAL.toMillis());
+          injectorsPerRampUpInterval = (int) Math.floorDiv(injectors, intervals);
+          rampUpInterval = MINIMAL_INTERVAL;
+        }
       }
 
       // calculate execution parameters
-      double injectorRate = (double) messageRate / injectors;
-      if (injectorRate <= 1) {
-        // 1. Enough injectors to provide the required rate sending each injector 1 msg per (>= 1
-        // second)
-        this.messagesPerExecutionInterval = 1;
-        this.executionTaskInterval = Duration.ofMillis((long) (1000 / injectorRate));
+      if (messageRate == Integer.MAX_VALUE) {
+        messagesPerExecutionInterval = Integer.MAX_VALUE;
       } else {
-        int maxInjectorsLoad = (int) Math.floorDiv(injectors * 1000, MINIMAL_INTERVAL.toMillis());
-        if (maxInjectorsLoad >= messageRate) {
-          // 2. Still can provide the required rate sending 1 mesg per tick, execution interval =
-          // [MIN_INTERVAL, 1 sec]
+        double injectorRate = (double) messageRate / injectors;
+        if (injectorRate <= 1) {
+          // 1. Enough injectors to provide the required rate sending each injector 1 msg per (>= 1
+          // second)
           this.messagesPerExecutionInterval = 1;
-          this.executionTaskInterval =
-              Duration.ofMillis(
-                  Math.floorDiv(maxInjectorsLoad, messageRate) * MINIMAL_INTERVAL.toMillis());
+          this.executionTaskInterval = Duration.ofMillis((long) (1000 / injectorRate));
         } else {
-          // 3. Have to send multiple messages per execution interval , interval already minimum
-          // (MIN_INTERVAL)
-          this.messagesPerExecutionInterval = Math.floorDiv(messageRate, maxInjectorsLoad);
-          this.executionTaskInterval = MINIMAL_INTERVAL;
+          int maxInjectorsLoad = (int) Math.floorDiv(injectors * 1000, MINIMAL_INTERVAL.toMillis());
+          if (maxInjectorsLoad >= messageRate) {
+            // 2. Still can provide the required rate sending 1 mesg per tick, execution interval =
+            // [MIN_INTERVAL, 1 sec]
+            this.messagesPerExecutionInterval = 1;
+            this.executionTaskInterval =
+                Duration.ofMillis(
+                    Math.floorDiv(maxInjectorsLoad, messageRate) * MINIMAL_INTERVAL.toMillis());
+          } else {
+            // 3. Have to send multiple messages per execution interval , interval already minimum
+            // (MIN_INTERVAL)
+            this.messagesPerExecutionInterval = Math.floorDiv(messageRate, maxInjectorsLoad);
+            this.executionTaskInterval = MINIMAL_INTERVAL;
+          }
         }
       }
       return this;
