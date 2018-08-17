@@ -16,16 +16,16 @@ import java.util.regex.Pattern;
 
 public class BenchmarksSettings {
 
-  private static final int N_THREADS = Runtime.getRuntime().availableProcessors();
-  private static final Duration SCENARIO_DURATION = Duration.ofSeconds(60);
+  static final int N_THREADS = Runtime.getRuntime().availableProcessors();
+  static final Duration SCENARIO_DURATION = Duration.ofSeconds(60);
   private static final Duration EXECUTION_TASK_INTERVAL = Duration.ZERO;
-  private static final Duration MINIMAL_INTERVAL = Duration.ofMillis(100);
+  static final Duration MINIMAL_INTERVAL = Duration.ofMillis(100);
   private static final Duration REPORTER_INTERVAL = Duration.ofSeconds(3);
   private static final TimeUnit DURATION_UNIT = TimeUnit.MILLISECONDS;
   private static final TimeUnit RATE_UNIT = TimeUnit.SECONDS;
   private static final long NUM_OF_ITERATIONS = Long.MAX_VALUE;
-  private static final Duration RAMP_UP_DURATION = Duration.ofSeconds(10);
-  private static final Duration RAMP_UP_INTERVAL = Duration.ofSeconds(1);
+  private static final Duration RAMP_UP_DURATION = Duration.ZERO;
+  private static final Duration RAMP_UP_INTERVAL = Duration.ZERO;
   private static final boolean CONSOLE_REPORTER_ENABLED = true;
   private static final String ALIAS_PATTERN = "^[.a-zA-Z_0-9]+$";
   private static final Predicate<String> ALIAS_PREDICATE =
