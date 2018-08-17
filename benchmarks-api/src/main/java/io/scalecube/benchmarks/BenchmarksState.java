@@ -240,7 +240,7 @@ public class BenchmarksState<S extends BenchmarksState<S>> {
           .doOnTerminate(latch::countDown)
           .subscribe();
 
-      latch.await(settings.executionTaskDuration().toMillis(), TimeUnit.MILLISECONDS);
+      latch.await(settings.scenarioDuration().toMillis(), TimeUnit.MILLISECONDS);
     } catch (InterruptedException e) {
       throw Exceptions.propagate(e);
     } finally {
@@ -273,7 +273,7 @@ public class BenchmarksState<S extends BenchmarksState<S>> {
           Flux.fromStream(LongStream.range(0, settings.numOfIterations()).boxed());
 
       Flux.merge(fromStream.publishOn(scheduler()).map(unitOfWork))
-          .take(settings.executionTaskDuration())
+          .take(settings.scenarioDuration())
           .blockLast();
     } finally {
       self.shutdown();

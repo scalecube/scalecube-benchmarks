@@ -23,7 +23,7 @@ public class RampUpSimpleTestRunner {
             .injectors(5)
             .messageRate(5)
             .rampUpDuration(Duration.ofSeconds(5))
-            .executionTaskDuration(Duration.ofSeconds(10))
+            .scenarioDuration(Duration.ofSeconds(10))
             .consoleReporterEnabled(false)
             .durationUnit(TimeUnit.NANOSECONDS)
             .build();
