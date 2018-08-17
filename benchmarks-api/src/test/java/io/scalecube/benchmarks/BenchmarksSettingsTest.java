@@ -21,8 +21,8 @@ class BenchmarksSettingsTest {
             .executionTaskInterval(Duration.ofSeconds(3))
             .build();
 
-    assertEquals(Duration.ofSeconds(10), settings.rampUpDuration());
-    assertEquals(Duration.ofSeconds(10), settings.rampUpInterval());
+    assertEquals(Duration.ZERO, settings.rampUpDuration());
+    assertEquals(Duration.ZERO, settings.rampUpInterval());
     assertEquals(Duration.ofMillis(100), settings.executionTaskInterval());
     assertEquals(Duration.ofSeconds(10), settings.scenarioDuration());
     assertEquals(1, settings.injectorsPerRampUpInterval());
