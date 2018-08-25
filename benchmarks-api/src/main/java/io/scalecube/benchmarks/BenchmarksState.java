@@ -268,12 +268,22 @@ public class BenchmarksState<S extends BenchmarksState<S>> {
       self.start();
 
       Function<Long, Publisher<?>> unitOfWork = func.apply(self);
+      int threads = settings.numberThreads();
+      long countPerThread = settings.numOfIterations() / threads;
 
-      Flux<Long> fromStream =
-          Flux.fromStream(LongStream.range(0, settings.numOfIterations()).boxed());
+      Function<Integer, Mono<?>> scenarioPerThread =
+          i ->
+              Mono.fromRunnable(
+                  () -> {
+                    long start = i * countPerThread;
+                    Flux.fromStream(LongStream.range(start, start + countPerThread).boxed())
+                        .flatMap(unitOfWork::apply)
+                        .take(settings.executionTaskDuration())
+                        .blockLast();
+                  });
 
-      Flux.merge(fromStream.publishOn(scheduler()).map(unitOfWork))
-          .take(settings.executionTaskDuration())
+      Flux.range(0, threads)
+          .flatMap(i -> scenarioPerThread.apply(i).subscribeOn(scheduler()))
           .blockLast();
     } finally {
       self.shutdown();
