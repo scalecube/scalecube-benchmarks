@@ -277,13 +277,16 @@ public class BenchmarksState<S extends BenchmarksState<S>> {
                   () -> {
                     long start = i * countPerThread;
                     Flux.fromStream(LongStream.range(start, start + countPerThread).boxed())
-                        .flatMap(unitOfWork::apply)
+                        .flatMap(unitOfWork::apply, 64, Integer.MAX_VALUE)
                         .take(settings.executionTaskDuration())
                         .blockLast();
                   });
 
       Flux.range(0, threads)
-          .flatMap(i -> scenarioPerThread.apply(i).subscribeOn(scheduler()))
+          .flatMap(
+              i -> scenarioPerThread.apply(i).subscribeOn(scheduler()),
+              Integer.MAX_VALUE,
+              Integer.MAX_VALUE)
           .blockLast();
     } finally {
       self.shutdown();
