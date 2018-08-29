@@ -46,6 +46,8 @@ public class BenchmarksState<S extends BenchmarksState<S>> {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(BenchmarksState.class);
 
+  private static final int DEFAULT_CONCURRENCY = 16;
+
   protected final BenchmarksSettings settings;
 
   private Scheduler scheduler;
@@ -277,7 +279,7 @@ public class BenchmarksState<S extends BenchmarksState<S>> {
                   () -> {
                     long start = i * countPerThread;
                     Flux.fromStream(LongStream.range(start, start + countPerThread).boxed())
-                        .flatMap(unitOfWork::apply, 64, Integer.MAX_VALUE)
+                        .flatMap(unitOfWork::apply, DEFAULT_CONCURRENCY, Integer.MAX_VALUE)
                         .take(settings.executionTaskDuration())
                         .blockLast();
                   });
