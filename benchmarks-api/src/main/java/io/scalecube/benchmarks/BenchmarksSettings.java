@@ -181,7 +181,7 @@ public class BenchmarksSettings {
   public String toString() {
     final StringBuilder sb = new StringBuilder("BenchmarksSettings{");
     sb.append("numberThreads=").append(numberThreads);
-    sb.append("concurrency=").append(concurrency);
+    sb.append(", concurrency=").append(concurrency);
     sb.append(", executionTaskDuration=").append(executionTaskDuration);
     sb.append(", executionTaskInterval=").append(executionTaskInterval);
     sb.append(", numOfIterations=").append(numOfIterations);

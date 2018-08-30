@@ -136,8 +136,8 @@ public class BenchmarksState<S extends BenchmarksState<S>> {
                 }));
 
     warmUpSubscriber =
-        Mono.delay(settings.warmUpDuration()).log("----------> ")
-            .doOnSuccess(aLong -> warmUpOccurred.compareAndSet(false, true))
+        Mono.delay(settings.warmUpDuration())
+            .doOnSuccess(avoid -> warmUpOccurred.compareAndSet(false, true))
             .subscribe();
   }
 
