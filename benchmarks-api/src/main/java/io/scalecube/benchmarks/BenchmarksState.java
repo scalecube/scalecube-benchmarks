@@ -85,7 +85,6 @@ public class BenchmarksState<S extends BenchmarksState<S>> {
 
     registry = new MetricRegistry();
 
-
     metrics = new CodahaleBenchmarksMetrics(registry, warmUpOccurred::get);
 
     if (settings.consoleReporterEnabled()) {
@@ -117,12 +116,6 @@ public class BenchmarksState<S extends BenchmarksState<S>> {
       throw new IllegalStateException("BenchmarksState beforeAll() failed: " + ex, ex);
     }
 
-    if (settings.consoleReporterEnabled()) {
-      consoleReporter.start(settings.reporterInterval().toMillis(), TimeUnit.MILLISECONDS);
-    }
-
-    csvReporter.start(settings.reporterInterval().toMillis(), TimeUnit.MILLISECONDS);
-
     Runtime.getRuntime()
         .addShutdownHook(
             new Thread(
@@ -137,7 +130,15 @@ public class BenchmarksState<S extends BenchmarksState<S>> {
 
     warmUpSubscriber =
         Mono.delay(settings.warmUpDuration())
-            .doOnSuccess(avoid -> warmUpOccurred.compareAndSet(false, true))
+            .doOnSuccess(
+                avoid -> {
+                  warmUpOccurred.compareAndSet(false, true);
+                  if (settings.consoleReporterEnabled()) {
+                    consoleReporter.start(
+                        settings.reporterInterval().toMillis(), TimeUnit.MILLISECONDS);
+                  }
+                  csvReporter.start(settings.reporterInterval().toMillis(), TimeUnit.MILLISECONDS);
+                })
             .subscribe();
   }
 
