@@ -17,6 +17,7 @@ import java.util.regex.Pattern;
 public class BenchmarksSettings {
 
   private static final int N_THREADS = Runtime.getRuntime().availableProcessors();
+  private static final int CONCURRENCY = 16;
   private static final Duration EXECUTION_TASK_DURATION = Duration.ofSeconds(60);
   private static final Duration EXECUTION_TASK_INTERVAL = Duration.ZERO;
   private static final Duration MINIMAL_INTERVAL = Duration.ofMillis(100);
@@ -32,6 +33,7 @@ public class BenchmarksSettings {
       Pattern.compile(ALIAS_PATTERN).asPredicate();
 
   private final int numberThreads;
+  private final int concurrency;
   private final Duration executionTaskDuration;
   private final Duration executionTaskInterval;
   private final Duration reporterInterval;
@@ -78,6 +80,7 @@ public class BenchmarksSettings {
     this.messagesPerExecutionInterval = builder.messagesPerExecutionInterval;
     this.injectors = builder.injectors;
     this.messageRate = builder.messageRate;
+    this.concurrency = builder.concurrency;
 
     this.registry = new MetricRegistry();
 
@@ -171,10 +174,15 @@ public class BenchmarksSettings {
     return messagesPerExecutionInterval;
   }
 
+  public int concurrency() {
+    return concurrency;
+  }
+
   @Override
   public String toString() {
     final StringBuilder sb = new StringBuilder("BenchmarksSettings{");
     sb.append("numberThreads=").append(numberThreads);
+    sb.append("concurrency=").append(concurrency);
     sb.append(", executionTaskDuration=").append(executionTaskDuration);
     sb.append(", executionTaskInterval=").append(executionTaskInterval);
     sb.append(", numOfIterations=").append(numOfIterations);
@@ -218,6 +226,7 @@ public class BenchmarksSettings {
     private int messageRate; // optional
     private int injectorsPerRampUpInterval; // calculated
     private int messagesPerExecutionInterval; // calculated
+    private int concurrency = CONCURRENCY;
 
     private Builder() {
       this.options = new HashMap<>();
@@ -240,6 +249,7 @@ public class BenchmarksSettings {
       this.messagesPerExecutionInterval = that.messagesPerExecutionInterval;
       this.injectors = that.injectors;
       this.messageRate = that.messageRate;
+      this.concurrency = that.concurrency;
     }
 
     public Builder numberThreads(int numThreads) {
@@ -304,6 +314,11 @@ public class BenchmarksSettings {
 
     public Builder messageRate(int messageRate) {
       this.messageRate = messageRate;
+      return this;
+    }
+
+    public Builder concurrency(int concurrency) {
+      this.concurrency = concurrency;
       return this;
     }
 
@@ -382,6 +397,9 @@ public class BenchmarksSettings {
           switch (key) {
             case "nThreads":
               numberThreads(Integer.parseInt(value));
+              break;
+            case "concurrency":
+              concurrency(Integer.parseInt(value));
               break;
             case "executionTaskDurationInSec":
               executionTaskDuration(Duration.ofSeconds(Long.parseLong(value)));
