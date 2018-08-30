@@ -1,8 +1,9 @@
 package io.scalecube.benchmarks.examples;
 
-import com.codahale.metrics.Meter;
-import com.codahale.metrics.Timer;
 import io.scalecube.benchmarks.BenchmarksSettings;
+import io.scalecube.benchmarks.metrics.BenchmarksMeter;
+import io.scalecube.benchmarks.metrics.BenchmarksTimer;
+import io.scalecube.benchmarks.metrics.BenchmarksTimer.Context;
 import java.util.concurrent.TimeUnit;
 
 public class SyncExampleBenchmarksRunner {
@@ -19,11 +20,11 @@ public class SyncExampleBenchmarksRunner {
         .runForSync(
             state -> {
               ExampleService service = state.exampleService();
-              Timer timer = state.timer("timer");
-              Meter meter = state.meter("meter");
+              BenchmarksTimer timer = state.timer("timer");
+              BenchmarksMeter meter = state.meter("meter");
 
               return i -> {
-                Timer.Context timeContext = timer.time();
+                Context timeContext = timer.time();
                 String result = service.syncInvoke("hello");
                 timeContext.stop();
                 meter.mark();

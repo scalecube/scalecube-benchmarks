@@ -128,11 +128,6 @@
         <artifactId>metrics-core</artifactId>
         <version>${metrics.version}</version>
       </dependency>
-      <dependency>
-        <groupId>com.codahale.metrics</groupId>
-        <artifactId>metrics-jvm</artifactId>
-        <version>${metrics-jvm.version}</version>
-      </dependency>
 
       <!-- Other dependencies -->
       <dependency>

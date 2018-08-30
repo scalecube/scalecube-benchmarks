@@ -1,7 +1,7 @@
 package io.scalecube.benchmarks.examples;
 
-import com.codahale.metrics.Timer;
 import io.scalecube.benchmarks.BenchmarksSettings;
+import io.scalecube.benchmarks.metrics.BenchmarksTimer;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 import reactor.core.publisher.Mono;
@@ -33,9 +33,9 @@ public class RampUpExampleFailingSetUpRunner {
               }
             },
             state -> {
-              Timer timer = state.timer("timer");
+              BenchmarksTimer timer = state.timer("timer");
               return (iteration, serviceCaller) -> {
-                Timer.Context timeContext = timer.time();
+                BenchmarksTimer.Context timeContext = timer.time();
                 return serviceCaller.call("hello").doOnTerminate(timeContext::stop);
               };
             },
