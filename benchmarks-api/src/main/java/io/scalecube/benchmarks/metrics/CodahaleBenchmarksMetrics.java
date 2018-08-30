@@ -5,13 +5,18 @@ import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Timer;
 import io.scalecube.benchmarks.BenchmarksMetrics;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 
 public class CodahaleBenchmarksMetrics implements BenchmarksMetrics {
 
   private final MetricRegistry registry;
 
-  public CodahaleBenchmarksMetrics(MetricRegistry registry) {
+  private final Supplier<Boolean> enabled;
+
+  public CodahaleBenchmarksMetrics(MetricRegistry registry,
+      Supplier<Boolean> enabled) {
     this.registry = registry;
+    this.enabled = enabled;
   }
 
   @Override
@@ -20,13 +25,19 @@ public class CodahaleBenchmarksMetrics implements BenchmarksMetrics {
     return new BenchmarksTimer() {
       @Override
       public void update(long value, TimeUnit timeUnit) {
-        timer.update(value, timeUnit);
+        if (enabled.get()) {
+          timer.update(value, timeUnit);
+        }
       }
 
       @Override
       public Context time() {
         Timer.Context context = timer.time();
-        return context::stop;
+        return () -> {
+          if (enabled.get()) {
+            context.stop();
+          }
+        };
       }
     };
   }
@@ -43,12 +54,16 @@ public class CodahaleBenchmarksMetrics implements BenchmarksMetrics {
     return new BenchmarksMeter() {
       @Override
       public void mark() {
-        meter.mark();
+        if (enabled.get()) {
+          meter.mark();
+        }
       }
 
       @Override
       public void mark(long value) {
-        meter.mark(value);
+        if (enabled.get()) {
+          meter.mark(value);
+        }
       }
     };
   }

@@ -6,7 +6,6 @@ import com.codahale.metrics.MetricRegistry;
 import io.scalecube.benchmarks.metrics.BenchmarksMeter;
 import io.scalecube.benchmarks.metrics.BenchmarksTimer;
 import io.scalecube.benchmarks.metrics.CodahaleBenchmarksMetrics;
-import io.scalecube.benchmarks.metrics.NoOpBenchmarksMetrics;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -15,7 +14,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiFunction;
 import java.util.function.Function;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.LongStream;
@@ -87,21 +85,8 @@ public class BenchmarksState<S extends BenchmarksState<S>> {
 
     registry = new MetricRegistry();
 
-    metrics =
-        new DelegatedBenchmarksMetrics(
-            new Supplier<BenchmarksMetrics>() {
 
-              final CodahaleBenchmarksMetrics codahaleBenchmarksMetrics = //
-                  new CodahaleBenchmarksMetrics(registry);
-
-              final NoOpBenchmarksMetrics noOpBenchmarksMetrics = //
-                  new NoOpBenchmarksMetrics();
-
-              @Override
-              public BenchmarksMetrics get() {
-                return warmUpOccurred.get() ? codahaleBenchmarksMetrics : noOpBenchmarksMetrics;
-              }
-            });
+    metrics = new CodahaleBenchmarksMetrics(registry, warmUpOccurred::get);
 
     if (settings.consoleReporterEnabled()) {
       consoleReporter =
