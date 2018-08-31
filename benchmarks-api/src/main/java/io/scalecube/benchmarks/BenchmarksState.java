@@ -18,7 +18,6 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 import org.reactivestreams.Publisher;
-import org.reactivestreams.Subscriber;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.Disposable;
@@ -254,11 +253,7 @@ public class BenchmarksState<S extends BenchmarksState<S>> {
    *
    * <p>NOTICE: It's only for asynchronous code.
    *
-   * @param func a function that should return the execution to be tested for the given S. This
-   *     execution would run on all positive values of Long (i.e. the benchmark itself) On the
-   *     return value, as it is a Publisher, The benchmark test would {@link
-   *     Publisher#subscribe(Subscriber)} subscribe}, And upon all subscriptions - await for
-   *     termination.
+   * @param func a function that should return the execution to be tested for the given S.
    */
   public final void runForAsync(Function<S, Function<Long, Publisher<?>>> func) {
     // noinspection unchecked

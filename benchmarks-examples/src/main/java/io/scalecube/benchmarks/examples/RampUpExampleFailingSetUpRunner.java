@@ -2,6 +2,7 @@ package io.scalecube.benchmarks.examples;
 
 import io.scalecube.benchmarks.BenchmarksSettings;
 import io.scalecube.benchmarks.metrics.BenchmarksTimer;
+import io.scalecube.benchmarks.metrics.BenchmarksTimer.Context;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 import reactor.core.publisher.Mono;
@@ -35,7 +36,7 @@ public class RampUpExampleFailingSetUpRunner {
             state -> {
               BenchmarksTimer timer = state.timer("timer");
               return (iteration, serviceCaller) -> {
-                BenchmarksTimer.Context timeContext = timer.time();
+                Context timeContext = timer.time();
                 return serviceCaller.call("hello").doOnTerminate(timeContext::stop);
               };
             },

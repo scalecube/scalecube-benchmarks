@@ -6,7 +6,7 @@ import io.scalecube.benchmarks.metrics.BenchmarksTimer;
 import io.scalecube.benchmarks.metrics.BenchmarksTimer.Context;
 import java.util.concurrent.TimeUnit;
 
-public class ExampleBenchmarksRunner {
+public class AsyncExampleBenchmarksRunner {
 
   /**
    * Runs example benchmark.
