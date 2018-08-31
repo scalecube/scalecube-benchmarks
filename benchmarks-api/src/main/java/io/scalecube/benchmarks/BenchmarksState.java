@@ -1,14 +1,11 @@
 package io.scalecube.benchmarks;
 
 import com.codahale.metrics.ConsoleReporter;
-import com.codahale.metrics.Counter;
 import com.codahale.metrics.CsvReporter;
-import com.codahale.metrics.Histogram;
-import com.codahale.metrics.Meter;
-import com.codahale.metrics.Timer;
-import com.codahale.metrics.jvm.GarbageCollectorMetricSet;
-import com.codahale.metrics.jvm.MemoryUsageGaugeSet;
-import com.codahale.metrics.jvm.ThreadStatesGaugeSet;
+import com.codahale.metrics.MetricRegistry;
+import io.scalecube.benchmarks.metrics.BenchmarksMeter;
+import io.scalecube.benchmarks.metrics.BenchmarksTimer;
+import io.scalecube.benchmarks.metrics.CodahaleBenchmarksMetrics;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -23,6 +20,7 @@ import java.util.stream.LongStream;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import reactor.core.Disposable;
 import reactor.core.Exceptions;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
@@ -51,10 +49,16 @@ public class BenchmarksState<S extends BenchmarksState<S>> {
   private Scheduler scheduler;
   private List<Scheduler> schedulers;
 
+  private MetricRegistry registry;
+  private BenchmarksMetrics metrics;
+
   private ConsoleReporter consoleReporter;
   private CsvReporter csvReporter;
 
   private final AtomicBoolean started = new AtomicBoolean();
+
+  private final AtomicBoolean warmUpOccurred = new AtomicBoolean(false);
+  private Disposable warmUpSubscriber;
 
   public BenchmarksState(BenchmarksSettings settings) {
     this.settings = settings;
@@ -78,9 +82,13 @@ public class BenchmarksState<S extends BenchmarksState<S>> {
 
     LOGGER.info("Benchmarks settings: " + settings);
 
+    registry = new MetricRegistry();
+
+    metrics = new CodahaleBenchmarksMetrics(registry, warmUpOccurred::get);
+
     if (settings.consoleReporterEnabled()) {
       consoleReporter =
-          ConsoleReporter.forRegistry(settings.registry())
+          ConsoleReporter.forRegistry(registry)
               .outputTo(System.out)
               .convertDurationsTo(settings.durationUnit())
               .convertRatesTo(settings.rateUnit())
@@ -88,7 +96,7 @@ public class BenchmarksState<S extends BenchmarksState<S>> {
     }
 
     csvReporter =
-        CsvReporter.forRegistry(settings.registry())
+        CsvReporter.forRegistry(registry)
             .convertDurationsTo(settings.durationUnit())
             .convertRatesTo(settings.rateUnit())
             .build(settings.csvReporterDirectory());
@@ -107,16 +115,6 @@ public class BenchmarksState<S extends BenchmarksState<S>> {
       throw new IllegalStateException("BenchmarksState beforeAll() failed: " + ex, ex);
     }
 
-    settings.registry().register(settings.taskName() + "-gc", new GarbageCollectorMetricSet());
-    settings.registry().register(settings.taskName() + "-memory", new MemoryUsageGaugeSet());
-    settings.registry().register(settings.taskName() + "-threads", new ThreadStatesGaugeSet());
-
-    if (settings.consoleReporterEnabled()) {
-      consoleReporter.start(settings.reporterInterval().toMillis(), TimeUnit.MILLISECONDS);
-    }
-
-    csvReporter.start(settings.reporterInterval().toMillis(), TimeUnit.MILLISECONDS);
-
     Runtime.getRuntime()
         .addShutdownHook(
             new Thread(
@@ -128,6 +126,19 @@ public class BenchmarksState<S extends BenchmarksState<S>> {
                     }
                   }
                 }));
+
+    warmUpSubscriber =
+        Mono.delay(settings.warmUpDuration())
+            .doOnSuccess(
+                avoid -> {
+                  warmUpOccurred.compareAndSet(false, true);
+                  if (settings.consoleReporterEnabled()) {
+                    consoleReporter.start(
+                        settings.reporterInterval().toMillis(), TimeUnit.MILLISECONDS);
+                  }
+                  csvReporter.start(settings.reporterInterval().toMillis(), TimeUnit.MILLISECONDS);
+                })
+            .subscribe();
   }
 
   /**
@@ -137,6 +148,10 @@ public class BenchmarksState<S extends BenchmarksState<S>> {
   public final void shutdown() {
     if (!started.compareAndSet(true, false)) {
       throw new IllegalStateException("BenchmarksState is not started");
+    }
+
+    if (warmUpSubscriber != null) {
+      warmUpSubscriber.dispose();
     }
 
     if (consoleReporter != null) {
@@ -172,14 +187,18 @@ public class BenchmarksState<S extends BenchmarksState<S>> {
     return schedulers;
   }
 
+  public MetricRegistry registry() {
+    return registry;
+  }
+
   /**
    * Returns timer with specified name.
    *
    * @param name name
    * @return timer with specified name
    */
-  public Timer timer(String name) {
-    return settings.registry().timer(settings.taskName() + "-" + name);
+  public BenchmarksTimer timer(String name) {
+    return metrics.timer(settings.taskName() + "-" + name);
   }
 
   /**
@@ -188,28 +207,8 @@ public class BenchmarksState<S extends BenchmarksState<S>> {
    * @param name name
    * @return meter with specified name
    */
-  public Meter meter(String name) {
-    return settings.registry().meter(settings.taskName() + "-" + name);
-  }
-
-  /**
-   * Returns histogram with specified name.
-   *
-   * @param name name
-   * @return histogram with specified name
-   */
-  public Histogram histogram(String name) {
-    return settings.registry().histogram(settings.taskName() + "-" + name);
-  }
-
-  /**
-   * Returns counter with specified name.
-   *
-   * @param name name
-   * @return counter with specified name
-   */
-  public Counter counter(String name) {
-    return settings.registry().counter(settings.taskName() + "-" + name);
+  public BenchmarksMeter meter(String name) {
+    return metrics.meter(settings.taskName() + "-" + name);
   }
 
   /**
@@ -254,11 +253,7 @@ public class BenchmarksState<S extends BenchmarksState<S>> {
    *
    * <p>NOTICE: It's only for asynchronous code.
    *
-   * @param func a function that should return the execution to be tested for the given S. This
-   *     execution would run on all positive values of Long (i.e. the benchmark itself) On the
-   *     return value, as it is a Publisher, The benchmark test would {@link
-   *     Publisher#subscribe(Subscriber) subscribe}, And upon all subscriptions - await for
-   *     termination.
+   * @param func a function that should return the execution to be tested for the given S.
    */
   public final void runForAsync(Function<S, Function<Long, Publisher<?>>> func) {
     // noinspection unchecked

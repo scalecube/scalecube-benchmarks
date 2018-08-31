@@ -1,12 +1,12 @@
 package io.scalecube.benchmarks.examples;
 
-import com.codahale.metrics.Histogram;
-import com.codahale.metrics.Meter;
-import com.codahale.metrics.Timer;
 import io.scalecube.benchmarks.BenchmarksSettings;
+import io.scalecube.benchmarks.metrics.BenchmarksMeter;
+import io.scalecube.benchmarks.metrics.BenchmarksTimer;
+import io.scalecube.benchmarks.metrics.BenchmarksTimer.Context;
 import java.util.concurrent.TimeUnit;
 
-public class ExampleBenchmarksRunner {
+public class AsyncExampleBenchmarksRunner {
 
   /**
    * Runs example benchmark.
@@ -20,20 +20,17 @@ public class ExampleBenchmarksRunner {
         .runForAsync(
             state -> {
               ExampleService service = state.exampleService();
-              Timer timer = state.timer("timer");
-              Meter meter = state.meter("meter");
-              Histogram histogram = state.histogram("histogram");
+              BenchmarksTimer timer = state.timer("timer");
+              BenchmarksMeter meter = state.meter("meter");
 
               return i -> {
-                long start = System.nanoTime();
-                Timer.Context timeContext = timer.time();
+                Context timeContext = timer.time();
                 return service
                     .invoke("hello")
                     .doOnTerminate(
                         () -> {
                           timeContext.stop();
                           meter.mark();
-                          histogram.update(System.nanoTime() - start);
                         });
               };
             });
