@@ -10,11 +10,9 @@ import java.util.function.Supplier;
 public class CodahaleBenchmarksMetrics implements BenchmarksMetrics {
 
   private final MetricRegistry registry;
-
   private final Supplier<Boolean> enabled;
 
-  public CodahaleBenchmarksMetrics(MetricRegistry registry,
-      Supplier<Boolean> enabled) {
+  public CodahaleBenchmarksMetrics(MetricRegistry registry, Supplier<Boolean> enabled) {
     this.registry = registry;
     this.enabled = enabled;
   }
@@ -32,12 +30,12 @@ public class CodahaleBenchmarksMetrics implements BenchmarksMetrics {
 
       @Override
       public Context time() {
-        Timer.Context context = timer.time();
-        return () -> {
-          if (enabled.get()) {
-            context.stop();
-          }
-        };
+        if (enabled.get()) {
+          Timer.Context context = timer.time();
+          return context::stop;
+        } else {
+          return NO_OP_CONTEXT;
+        }
       }
     };
   }
@@ -54,16 +52,12 @@ public class CodahaleBenchmarksMetrics implements BenchmarksMetrics {
     return new BenchmarksMeter() {
       @Override
       public void mark() {
-        if (enabled.get()) {
-          meter.mark();
-        }
+        meter.mark();
       }
 
       @Override
       public void mark(long value) {
-        if (enabled.get()) {
-          meter.mark(value);
-        }
+        meter.mark(value);
       }
     };
   }
