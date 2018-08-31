@@ -1,7 +1,5 @@
 package io.scalecube.benchmarks;
 
-import com.codahale.metrics.MetricRegistry;
-
 import java.io.File;
 import java.nio.file.Paths;
 import java.time.Duration;
@@ -18,20 +16,24 @@ import java.util.regex.Pattern;
 public class BenchmarksSettings {
 
   private static final int N_THREADS = Runtime.getRuntime().availableProcessors();
-  private static final Duration EXECUTION_TASK_DURATION = Duration.ofSeconds(60);
+  private static final int CONCURRENCY = 16;
+  private static final Duration EXECUTION_TASK_DURATION = Duration.ofSeconds(120);
   private static final Duration EXECUTION_TASK_INTERVAL = Duration.ZERO;
   private static final Duration MINIMAL_INTERVAL = Duration.ofMillis(100);
   private static final Duration REPORTER_INTERVAL = Duration.ofSeconds(3);
   private static final TimeUnit DURATION_UNIT = TimeUnit.MILLISECONDS;
   private static final TimeUnit RATE_UNIT = TimeUnit.SECONDS;
   private static final long NUM_OF_ITERATIONS = Long.MAX_VALUE;
+  private static final Duration WARM_UP_DURATION = Duration.ofSeconds(20);
   private static final Duration RAMP_UP_DURATION = Duration.ofSeconds(10);
   private static final Duration RAMP_UP_INTERVAL = Duration.ofSeconds(1);
   private static final boolean CONSOLE_REPORTER_ENABLED = true;
   private static final String ALIAS_PATTERN = "^[.a-zA-Z_0-9]+$";
-  private static final Predicate<String> ALIAS_PREDICATE = Pattern.compile(ALIAS_PATTERN).asPredicate();
+  private static final Predicate<String> ALIAS_PREDICATE =
+      Pattern.compile(ALIAS_PATTERN).asPredicate();
 
-  private final int nThreads;
+  private final int numberThreads;
+  private final int concurrency;
   private final Duration executionTaskDuration;
   private final Duration executionTaskInterval;
   private final Duration reporterInterval;
@@ -39,8 +41,8 @@ public class BenchmarksSettings {
   private final String taskName;
   private final TimeUnit durationUnit;
   private final TimeUnit rateUnit;
-  private final MetricRegistry registry;
   private final long numOfIterations;
+  private final Duration warmUpDuration;
   private final Duration rampUpDuration;
   private final Duration rampUpInterval;
   private final boolean consoleReporterEnabled;
@@ -51,6 +53,11 @@ public class BenchmarksSettings {
 
   private final Map<String, String> options;
 
+  /**
+   * Parses array of command line parameters to override settings that are already defined.
+   *
+   * @param args - array of command line arguments.
+   */
   public static Builder from(String[] args) {
     Builder builder = new Builder();
     builder.args = args;
@@ -58,12 +65,13 @@ public class BenchmarksSettings {
   }
 
   private BenchmarksSettings(Builder builder) {
-    this.nThreads = builder.nThreads;
+    this.numberThreads = builder.numberThreads;
     this.executionTaskDuration = builder.executionTaskDuration;
     this.executionTaskInterval = builder.executionTaskInterval;
     this.reporterInterval = builder.reporterInterval;
     this.numOfIterations = builder.numOfIterations;
     this.consoleReporterEnabled = builder.consoleReporterEnabled;
+    this.warmUpDuration = builder.warmUpDuration;
     this.rampUpDuration = builder.rampUpDuration;
     this.rampUpInterval = builder.rampUpInterval;
     this.options = builder.options;
@@ -73,18 +81,19 @@ public class BenchmarksSettings {
     this.messagesPerExecutionInterval = builder.messagesPerExecutionInterval;
     this.injectors = builder.injectors;
     this.messageRate = builder.messageRate;
-
-    this.registry = new MetricRegistry();
+    this.concurrency = builder.concurrency;
 
     StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
     this.taskName = minifyClassName(stackTrace[stackTrace.length - 1].getClassName());
 
-    String time = LocalDateTime.ofInstant(Instant.now(), ZoneOffset.UTC)
-        .format(DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm-ss"));
+    String time =
+        LocalDateTime.ofInstant(Instant.now(), ZoneOffset.UTC)
+            .format(DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm-ss"));
 
     String alias = find("alias", taskName);
     if (!ALIAS_PREDICATE.test(alias)) {
-      throw new IllegalArgumentException("alias '" + alias + "' must match pattern " + ALIAS_PATTERN);
+      throw new IllegalArgumentException(
+          "alias '" + alias + "' must match pattern " + ALIAS_PATTERN);
     }
 
     this.csvReporterDirectory = Paths.get("reports", "benchmarks", alias, time).toFile();
@@ -92,8 +101,8 @@ public class BenchmarksSettings {
     this.csvReporterDirectory.mkdirs();
   }
 
-  public int nThreads() {
-    return nThreads;
+  public int numberThreads() {
+    return numberThreads;
   }
 
   public Duration executionTaskDuration() {
@@ -120,10 +129,6 @@ public class BenchmarksSettings {
     return options.getOrDefault(key, defValue);
   }
 
-  public MetricRegistry registry() {
-    return registry;
-  }
-
   public TimeUnit durationUnit() {
     return durationUnit;
   }
@@ -134,6 +139,10 @@ public class BenchmarksSettings {
 
   public long numOfIterations() {
     return numOfIterations;
+  }
+
+  public Duration warmUpDuration() {
+    return warmUpDuration;
   }
 
   public Duration rampUpDuration() {
@@ -164,10 +173,15 @@ public class BenchmarksSettings {
     return messagesPerExecutionInterval;
   }
 
+  public int concurrency() {
+    return concurrency;
+  }
+
   @Override
   public String toString() {
     final StringBuilder sb = new StringBuilder("BenchmarksSettings{");
-    sb.append("nThreads=").append(nThreads);
+    sb.append("numberThreads=").append(numberThreads);
+    sb.append(", concurrency=").append(concurrency);
     sb.append(", executionTaskDuration=").append(executionTaskDuration);
     sb.append(", executionTaskInterval=").append(executionTaskInterval);
     sb.append(", numOfIterations=").append(numOfIterations);
@@ -176,10 +190,10 @@ public class BenchmarksSettings {
     sb.append(", taskName='").append(taskName).append('\'');
     sb.append(", durationUnit=").append(durationUnit);
     sb.append(", rateUnit=").append(rateUnit);
+    sb.append(", warmUpDuration=").append(warmUpDuration);
     sb.append(", rampUpDuration=").append(rampUpDuration);
     sb.append(", rampUpInterval=").append(rampUpInterval);
     sb.append(", consoleReporterEnabled=").append(consoleReporterEnabled);
-    sb.append(", registry=").append(registry);
     sb.append(", injectors=").append(injectors);
     sb.append(", messageRate=").append(messageRate);
     sb.append(", injectorsPerRampUpInterval=").append(injectorsPerRampUpInterval);
@@ -196,13 +210,14 @@ public class BenchmarksSettings {
   public static class Builder {
     private final Map<String, String> options;
 
-    private int nThreads = N_THREADS;
+    private int numberThreads = N_THREADS;
     private Duration executionTaskDuration = EXECUTION_TASK_DURATION;
     private Duration executionTaskInterval = EXECUTION_TASK_INTERVAL;
     private Duration reporterInterval = REPORTER_INTERVAL;
     private TimeUnit durationUnit = DURATION_UNIT;
     private TimeUnit rateUnit = RATE_UNIT;
     private long numOfIterations = NUM_OF_ITERATIONS;
+    private Duration warmUpDuration = WARM_UP_DURATION;
     private Duration rampUpDuration = RAMP_UP_DURATION;
     private Duration rampUpInterval = RAMP_UP_INTERVAL; // calculated
     private boolean consoleReporterEnabled = CONSOLE_REPORTER_ENABLED;
@@ -211,6 +226,7 @@ public class BenchmarksSettings {
     private int messageRate; // optional
     private int injectorsPerRampUpInterval; // calculated
     private int messagesPerExecutionInterval; // calculated
+    private int concurrency = CONCURRENCY;
 
     private Builder() {
       this.options = new HashMap<>();
@@ -218,13 +234,14 @@ public class BenchmarksSettings {
 
     private Builder(Builder that) {
       this.options = that.options;
-      this.nThreads = that.nThreads;
+      this.numberThreads = that.numberThreads;
       this.executionTaskDuration = that.executionTaskDuration;
       this.executionTaskInterval = that.executionTaskInterval;
       this.reporterInterval = that.reporterInterval;
       this.durationUnit = that.durationUnit;
       this.rateUnit = that.rateUnit;
       this.numOfIterations = that.numOfIterations;
+      this.warmUpDuration = that.warmUpDuration;
       this.rampUpDuration = that.rampUpDuration;
       this.rampUpInterval = that.rampUpInterval;
       this.consoleReporterEnabled = that.consoleReporterEnabled;
@@ -233,10 +250,11 @@ public class BenchmarksSettings {
       this.messagesPerExecutionInterval = that.messagesPerExecutionInterval;
       this.injectors = that.injectors;
       this.messageRate = that.messageRate;
+      this.concurrency = that.concurrency;
     }
 
-    public Builder nThreads(int numThreads) {
-      this.nThreads = numThreads;
+    public Builder numberThreads(int numThreads) {
+      this.numberThreads = numThreads;
       return this;
     }
 
@@ -275,6 +293,11 @@ public class BenchmarksSettings {
       return this;
     }
 
+    public Builder warmUpDuration(Duration warmUpDuration) {
+      this.warmUpDuration = warmUpDuration;
+      return this;
+    }
+
     public Builder rampUpDuration(Duration rampUpDuration) {
       this.rampUpDuration = rampUpDuration;
       return this;
@@ -300,6 +323,11 @@ public class BenchmarksSettings {
       return this;
     }
 
+    public Builder concurrency(int concurrency) {
+      this.concurrency = concurrency;
+      return this;
+    }
+
     public BenchmarksSettings build() {
       return new BenchmarksSettings(new Builder(this).parseArgs().calculateDynamicParams());
     }
@@ -322,7 +350,8 @@ public class BenchmarksSettings {
       }
 
       if (rampUpDuration.compareTo(executionTaskDuration) > 0) {
-        throw new IllegalArgumentException("'rampUpDuration' must be greater than 'executionTaskDuration'");
+        throw new IllegalArgumentException(
+            "'rampUpDuration' must be greater than 'executionTaskDuration'");
       }
 
       // calculate rampup parameters
@@ -342,18 +371,22 @@ public class BenchmarksSettings {
       // calculate execution parameters
       double injectorRate = (double) messageRate / injectors;
       if (injectorRate <= 1) {
-        // 1. Enough injectors to provide the required rate sending each injector 1 msg per (>= 1 second)
+        // 1. Enough injectors to provide the required rate sending each injector 1 msg per (>= 1
+        // second)
         this.messagesPerExecutionInterval = 1;
         this.executionTaskInterval = Duration.ofMillis((long) (1000 / injectorRate));
       } else {
         int maxInjectorsLoad = (int) Math.floorDiv(injectors * 1000, MINIMAL_INTERVAL.toMillis());
         if (maxInjectorsLoad >= messageRate) {
-          // 2. Still can provide the required rate sending 1 mesg per tick, execution interval = [MIN_INTERVAL, 1 sec]
+          // 2. Still can provide the required rate sending 1 mesg per tick, execution interval =
+          // [MIN_INTERVAL, 1 sec]
           this.messagesPerExecutionInterval = 1;
           this.executionTaskInterval =
-              Duration.ofMillis(Math.floorDiv(maxInjectorsLoad, messageRate) * MINIMAL_INTERVAL.toMillis());
+              Duration.ofMillis(
+                  Math.floorDiv(maxInjectorsLoad, messageRate) * MINIMAL_INTERVAL.toMillis());
         } else {
-          // 3. Have to send multiple messages per execution interval , interval already minimum (MIN_INTERVAL)
+          // 3. Have to send multiple messages per execution interval , interval already minimum
+          // (MIN_INTERVAL)
           this.messagesPerExecutionInterval = Math.floorDiv(messageRate, maxInjectorsLoad);
           this.executionTaskInterval = MINIMAL_INTERVAL;
         }
@@ -369,7 +402,10 @@ public class BenchmarksSettings {
           String value = keyValue[1];
           switch (key) {
             case "nThreads":
-              nThreads(Integer.parseInt(value));
+              numberThreads(Integer.parseInt(value));
+              break;
+            case "concurrency":
+              concurrency(Integer.parseInt(value));
               break;
             case "executionTaskDurationInSec":
               executionTaskDuration(Duration.ofSeconds(Long.parseLong(value)));
@@ -382,6 +418,9 @@ public class BenchmarksSettings {
               break;
             case "numOfIterations":
               numOfIterations(Long.parseLong(value));
+              break;
+            case "warmUpDurationInSec":
+              warmUpDuration(Duration.ofSeconds(Long.parseLong(value)));
               break;
             case "rampUpDurationInSec":
               rampUpDuration(Duration.ofSeconds(Long.parseLong(value)));

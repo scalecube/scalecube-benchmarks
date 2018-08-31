@@ -6,7 +6,7 @@ import io.scalecube.benchmarks.metrics.BenchmarksTimer;
 import io.scalecube.benchmarks.metrics.BenchmarksTimer.Context;
 import java.util.concurrent.TimeUnit;
 
-public class SyncExampleBenchmarksRunner {
+public class AsyncExampleBenchmarksRunner {
 
   /**
    * Runs example benchmark.
@@ -17,7 +17,7 @@ public class SyncExampleBenchmarksRunner {
     BenchmarksSettings settings =
         BenchmarksSettings.from(args).durationUnit(TimeUnit.NANOSECONDS).build();
     new ExampleServiceBenchmarksState(settings)
-        .runForSync(
+        .runForAsync(
             state -> {
               ExampleService service = state.exampleService();
               BenchmarksTimer timer = state.timer("timer");
@@ -25,10 +25,13 @@ public class SyncExampleBenchmarksRunner {
 
               return i -> {
                 Context timeContext = timer.time();
-                String result = service.syncInvoke("hello");
-                timeContext.stop();
-                meter.mark();
-                return result;
+                return service
+                    .invoke("hello")
+                    .doOnTerminate(
+                        () -> {
+                          timeContext.stop();
+                          meter.mark();
+                        });
               };
             });
   }

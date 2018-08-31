@@ -4,34 +4,34 @@ import static io.scalecube.benchmarks.BenchmarksTask.Status.COMPLETED;
 import static io.scalecube.benchmarks.BenchmarksTask.Status.COMPLETING;
 import static io.scalecube.benchmarks.BenchmarksTask.Status.SCHEDULED;
 
-import reactor.core.Disposable;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
-import reactor.core.scheduler.Scheduler;
-
-import org.reactivestreams.Publisher;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
+import org.reactivestreams.Publisher;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import reactor.core.Disposable;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Scheduler;
 
-public class BenchmarksTask<SELF extends BenchmarksState<SELF>, T> implements Runnable {
+public class BenchmarksTask<S extends BenchmarksState<S>, T> implements Runnable {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(BenchmarksTask.class);
 
   public enum Status {
-    SCHEDULED, COMPLETING, COMPLETED
+    SCHEDULED,
+    COMPLETING,
+    COMPLETED
   }
 
-  private final SELF benchmarksState;
+  private final S benchmarksState;
   private final T setUpResult;
   private final BiFunction<Long, T, Publisher<?>> unitOfWork;
-  private final BiFunction<SELF, T, Mono<Void>> cleanUp;
+  private final BiFunction<S, T, Mono<Void>> cleanUp;
   private final long numOfIterations;
   private final Duration executionTaskDuration;
   private final Duration executionTaskInterval;
@@ -44,16 +44,17 @@ public class BenchmarksTask<SELF extends BenchmarksState<SELF>, T> implements Ru
 
   /**
    * Constructs benchmark task.
-   * 
+   *
    * @param setUpResult a result of setUp function.
    * @param unitOfWork an unit of work.
    * @param cleanUp a function that should clean up some T's resources.
    * @param scheduler a scheduler.
    */
-  public BenchmarksTask(SELF benchmarksState,
+  public BenchmarksTask(
+      S benchmarksState,
       T setUpResult,
       BiFunction<Long, T, Publisher<?>> unitOfWork,
-      BiFunction<SELF, T, Mono<Void>> cleanUp,
+      BiFunction<S, T, Mono<Void>> cleanUp,
       Scheduler scheduler) {
 
     this.benchmarksState = benchmarksState;
@@ -82,24 +83,34 @@ public class BenchmarksTask<SELF extends BenchmarksState<SELF>, T> implements Ru
       long iter = iterationsCounter.incrementAndGet();
 
       Flux.from(unitOfWork.apply(iter, setUpResult))
-          .doOnError(ex -> LOGGER.warn("Exception occurred on unitOfWork at iteration: {}, cause: {}", iter, ex))
+          .doOnError(
+              ex ->
+                  LOGGER.warn(
+                      "Exception occurred on unitOfWork at iteration: {}, cause: {}", iter, ex))
           .repeat(Math.max(1, benchmarksState.settings.messagesPerExecutionInterval()))
-          .doFinally(signalType -> {
-            if (executionTaskInterval.isZero()) {
-              scheduler.schedule(this);
-            } else {
-              scheduler.schedule(this, executionTaskInterval.toMillis(), TimeUnit.MILLISECONDS);
-            }
-          }).subscribe();
+          .doFinally(
+              signalType -> {
+                if (executionTaskInterval.isZero()) {
+                  scheduler.schedule(this);
+                } else {
+                  scheduler.schedule(this, executionTaskInterval.toMillis(), TimeUnit.MILLISECONDS);
+                }
+              })
+          .subscribe();
       return;
     }
 
     if (setScheduled()) { // scheduled
-      scheduledCompletingTask
-          .set(scheduler.schedule(() -> {
-            LOGGER.debug("Task is completing due to execution duration limit: " + executionTaskDuration.toMillis());
-            startCompleting();
-          }, executionTaskDuration.toMillis(), TimeUnit.MILLISECONDS));
+      scheduledCompletingTask.set(
+          scheduler.schedule(
+              () -> {
+                LOGGER.debug(
+                    "Task is completing due to execution duration limit: "
+                        + executionTaskDuration.toMillis());
+                startCompleting();
+              },
+              executionTaskDuration.toMillis(),
+              TimeUnit.MILLISECONDS));
 
       LOGGER.debug("Obtained setUp result: {}, now scheduling", setUpResult);
       scheduler.schedule(this);
@@ -137,7 +148,8 @@ public class BenchmarksTask<SELF extends BenchmarksState<SELF>, T> implements Ru
   }
 
   private boolean trySetCompleting() {
-    return taskStatus.compareAndSet(null, COMPLETING) || taskStatus.compareAndSet(SCHEDULED, COMPLETING);
+    return taskStatus.compareAndSet(null, COMPLETING)
+        || taskStatus.compareAndSet(SCHEDULED, COMPLETING);
   }
 
   private boolean isCompleted() {
@@ -153,7 +165,7 @@ public class BenchmarksTask<SELF extends BenchmarksState<SELF>, T> implements Ru
       try {
         Mono<Void> voidMono = cleanUp.apply(benchmarksState, setUpResult);
         voidMono.subscribe(
-            aVoid -> setCompleted(),
+            empty -> setCompleted(),
             ex -> {
               LOGGER.error("Exception occured on cleanUp, cause: {}", ex);
               setCompletedWithError(ex);
