@@ -82,7 +82,10 @@ public class BenchmarkTask<S extends BenchmarkState<S>, T> implements Runnable {
     if (isScheduled()) { // executing
       long iter = iterationsCounter.incrementAndGet();
 
-      Flux.from(unitOfWork.apply(iter, setUpResult))
+      //noinspection unchecked
+      Flux<T> defer = (Flux<T>) Flux.defer(() -> unitOfWork.apply(iter, setUpResult));
+
+      Flux.from(defer)
           .doOnError(
               ex ->
                   LOGGER.warn(
