@@ -321,11 +321,7 @@ public class BenchmarkState<S extends BenchmarkState<S>> {
           .take(settings.rampUpDuration())
           .flatMap(
               rampUpIteration -> {
-                // select scheduler and bind tasks to it
-                int schedulerIndex =
-                    (int) ((rampUpIteration & Long.MAX_VALUE) % schedulers().size());
-                Scheduler scheduler = schedulers().get(schedulerIndex);
-
+                Scheduler scheduler = selectScheduler(rampUpIteration);
                 return Flux.range(0, Math.max(1, settings.injectorsPerRampUpInterval()))
                     .flatMap(
                         iteration1 ->
@@ -344,6 +340,12 @@ public class BenchmarkState<S extends BenchmarkState<S>> {
     } finally {
       self.shutdown();
     }
+  }
+
+  private Scheduler selectScheduler(Long rampUpIteration) {
+    // select scheduler and bind tasks to it
+    int schedulerIndex = (int) ((rampUpIteration & Long.MAX_VALUE) % schedulers().size());
+    return schedulers().get(schedulerIndex);
   }
 
   private <T> Flux<T> createSetUpFactory(
