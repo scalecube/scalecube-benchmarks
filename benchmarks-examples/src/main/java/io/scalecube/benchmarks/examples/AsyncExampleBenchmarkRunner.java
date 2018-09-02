@@ -1,12 +1,12 @@
 package io.scalecube.benchmarks.examples;
 
-import io.scalecube.benchmarks.BenchmarksSettings;
-import io.scalecube.benchmarks.metrics.BenchmarksMeter;
-import io.scalecube.benchmarks.metrics.BenchmarksTimer;
-import io.scalecube.benchmarks.metrics.BenchmarksTimer.Context;
+import io.scalecube.benchmarks.BenchmarkSettings;
+import io.scalecube.benchmarks.metrics.BenchmarkMeter;
+import io.scalecube.benchmarks.metrics.BenchmarkTimer;
+import io.scalecube.benchmarks.metrics.BenchmarkTimer.Context;
 import java.util.concurrent.TimeUnit;
 
-public class AsyncExampleBenchmarksRunner {
+public class AsyncExampleBenchmarkRunner {
 
   /**
    * Runs example benchmark.
@@ -14,14 +14,14 @@ public class AsyncExampleBenchmarksRunner {
    * @param args command line args
    */
   public static void main(String[] args) {
-    BenchmarksSettings settings =
-        BenchmarksSettings.from(args).durationUnit(TimeUnit.NANOSECONDS).build();
-    new ExampleServiceBenchmarksState(settings)
+    BenchmarkSettings settings =
+        BenchmarkSettings.from(args).durationUnit(TimeUnit.NANOSECONDS).build();
+    new ExampleServiceBenchmarkState(settings)
         .runForAsync(
             state -> {
               ExampleService service = state.exampleService();
-              BenchmarksTimer timer = state.timer("timer");
-              BenchmarksMeter meter = state.meter("meter");
+              BenchmarkTimer timer = state.timer("timer");
+              BenchmarkMeter meter = state.meter("meter");
 
               return i -> {
                 Context timeContext = timer.time();

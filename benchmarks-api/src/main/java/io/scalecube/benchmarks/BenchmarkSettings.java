@@ -13,7 +13,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
 
-public class BenchmarksSettings {
+public class BenchmarkSettings {
 
   private static final int N_THREADS = Runtime.getRuntime().availableProcessors();
   private static final int CONCURRENCY = 16;
@@ -64,7 +64,7 @@ public class BenchmarksSettings {
     return builder;
   }
 
-  private BenchmarksSettings(Builder builder) {
+  private BenchmarkSettings(Builder builder) {
     this.numberThreads = builder.numberThreads;
     this.executionTaskDuration = builder.executionTaskDuration;
     this.executionTaskInterval = builder.executionTaskInterval;
@@ -179,7 +179,7 @@ public class BenchmarksSettings {
 
   @Override
   public String toString() {
-    final StringBuilder sb = new StringBuilder("BenchmarksSettings{");
+    final StringBuilder sb = new StringBuilder("BenchmarkSettings{");
     sb.append("numberThreads=").append(numberThreads);
     sb.append(", concurrency=").append(concurrency);
     sb.append(", executionTaskDuration=").append(executionTaskDuration);
@@ -328,8 +328,8 @@ public class BenchmarksSettings {
       return this;
     }
 
-    public BenchmarksSettings build() {
-      return new BenchmarksSettings(new Builder(this).parseArgs().calculateDynamicParams());
+    public BenchmarkSettings build() {
+      return new BenchmarkSettings(new Builder(this).parseArgs().calculateDynamicParams());
     }
 
     private Builder calculateDynamicParams() {

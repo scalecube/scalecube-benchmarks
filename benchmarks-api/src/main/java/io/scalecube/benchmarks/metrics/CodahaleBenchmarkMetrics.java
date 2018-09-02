@@ -3,24 +3,24 @@ package io.scalecube.benchmarks.metrics;
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Timer;
-import io.scalecube.benchmarks.BenchmarksMetrics;
+import io.scalecube.benchmarks.BenchmarkMetrics;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
-public class CodahaleBenchmarksMetrics implements BenchmarksMetrics {
+public class CodahaleBenchmarkMetrics implements BenchmarkMetrics {
 
   private final MetricRegistry registry;
   private final Supplier<Boolean> enabled;
 
-  public CodahaleBenchmarksMetrics(MetricRegistry registry, Supplier<Boolean> enabled) {
+  public CodahaleBenchmarkMetrics(MetricRegistry registry, Supplier<Boolean> enabled) {
     this.registry = registry;
     this.enabled = enabled;
   }
 
   @Override
-  public BenchmarksTimer timer(String name) {
+  public BenchmarkTimer timer(String name) {
     Timer timer = registry.timer(name);
-    return new BenchmarksTimer() {
+    return new BenchmarkTimer() {
       @Override
       public void update(long value, TimeUnit timeUnit) {
         if (enabled.get()) {
@@ -47,9 +47,9 @@ public class CodahaleBenchmarksMetrics implements BenchmarksMetrics {
    * @return meter with specified name
    */
   @Override
-  public BenchmarksMeter meter(String name) {
+  public BenchmarkMeter meter(String name) {
     Meter meter = registry.meter(name);
-    return new BenchmarksMeter() {
+    return new BenchmarkMeter() {
       @Override
       public void mark() {
         meter.mark();

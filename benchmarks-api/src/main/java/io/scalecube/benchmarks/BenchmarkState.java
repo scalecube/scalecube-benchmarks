@@ -3,9 +3,9 @@ package io.scalecube.benchmarks;
 import com.codahale.metrics.ConsoleReporter;
 import com.codahale.metrics.CsvReporter;
 import com.codahale.metrics.MetricRegistry;
-import io.scalecube.benchmarks.metrics.BenchmarksMeter;
-import io.scalecube.benchmarks.metrics.BenchmarksTimer;
-import io.scalecube.benchmarks.metrics.CodahaleBenchmarksMetrics;
+import io.scalecube.benchmarks.metrics.BenchmarkMeter;
+import io.scalecube.benchmarks.metrics.BenchmarkTimer;
+import io.scalecube.benchmarks.metrics.CodahaleBenchmarkMetrics;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -29,28 +29,28 @@ import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
 
 /**
- * BenchmarksState is the state of the benchmark. it gives you the analogy of the beginning, and
+ * BenchmarkState is the state of the benchmark. it gives you the analogy of the beginning, and
  * ending of the test. It can run both sync or async way using the {@link #runForSync(Function)} and
  * {@link #runForAsync(Function)} respectively.
  *
  * @param <S> when extending this class, please add your class as the S. ie.
  *     <pre>{@code
- * public class ExampleBenchmarksState extends BenchmarksState<ExampleBenchmarksState> {
+ * public class ExampleBenchmarksState extends BenchmarkState<ExampleBenchmarksState> {
  *   ...
  * }
  * }</pre>
  */
-public class BenchmarksState<S extends BenchmarksState<S>> {
+public class BenchmarkState<S extends BenchmarkState<S>> {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(BenchmarksState.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(BenchmarkState.class);
 
-  protected final BenchmarksSettings settings;
+  protected final BenchmarkSettings settings;
 
   private Scheduler scheduler;
   private List<Scheduler> schedulers;
 
   private MetricRegistry registry;
-  private BenchmarksMetrics metrics;
+  private BenchmarkMetrics metrics;
 
   private ConsoleReporter consoleReporter;
   private CsvReporter csvReporter;
@@ -60,7 +60,7 @@ public class BenchmarksState<S extends BenchmarksState<S>> {
   private final AtomicBoolean warmUpOccurred = new AtomicBoolean(false);
   private Disposable warmUpSubscriber;
 
-  public BenchmarksState(BenchmarksSettings settings) {
+  public BenchmarkState(BenchmarkSettings settings) {
     this.settings = settings;
   }
 
@@ -73,18 +73,18 @@ public class BenchmarksState<S extends BenchmarksState<S>> {
   }
 
   /**
-   * Executes starting of the state, also it includes running of {@link BenchmarksState#beforeAll}.
+   * Executes starting of the state, also it includes running of {@link BenchmarkState#beforeAll}.
    */
   public final void start() {
     if (!started.compareAndSet(false, true)) {
-      throw new IllegalStateException("BenchmarksState is already started");
+      throw new IllegalStateException("BenchmarkState is already started");
     }
 
     LOGGER.info("Benchmarks settings: " + settings);
 
     registry = new MetricRegistry();
 
-    metrics = new CodahaleBenchmarksMetrics(registry, warmUpOccurred::get);
+    metrics = new CodahaleBenchmarkMetrics(registry, warmUpOccurred::get);
 
     if (settings.consoleReporterEnabled()) {
       consoleReporter =
@@ -112,7 +112,7 @@ public class BenchmarksState<S extends BenchmarksState<S>> {
     try {
       beforeAll();
     } catch (Exception ex) {
-      throw new IllegalStateException("BenchmarksState beforeAll() failed: " + ex, ex);
+      throw new IllegalStateException("BenchmarkState beforeAll() failed: " + ex, ex);
     }
 
     Runtime.getRuntime()
@@ -143,11 +143,11 @@ public class BenchmarksState<S extends BenchmarksState<S>> {
 
   /**
    * Executes shutdown process of the state, also it includes running of {@link
-   * BenchmarksState#afterAll}.
+   * BenchmarkState#afterAll}.
    */
   public final void shutdown() {
     if (!started.compareAndSet(true, false)) {
-      throw new IllegalStateException("BenchmarksState is not started");
+      throw new IllegalStateException("BenchmarkState is not started");
     }
 
     if (warmUpSubscriber != null) {
@@ -175,7 +175,7 @@ public class BenchmarksState<S extends BenchmarksState<S>> {
     try {
       afterAll();
     } catch (Exception ex) {
-      throw new IllegalStateException("BenchmarksState afterAll() failed: " + ex, ex);
+      throw new IllegalStateException("BenchmarkState afterAll() failed: " + ex, ex);
     }
   }
 
@@ -197,7 +197,7 @@ public class BenchmarksState<S extends BenchmarksState<S>> {
    * @param name name
    * @return timer with specified name
    */
-  public BenchmarksTimer timer(String name) {
+  public BenchmarkTimer timer(String name) {
     return metrics.timer(settings.taskName() + "-" + name);
   }
 
@@ -207,13 +207,13 @@ public class BenchmarksState<S extends BenchmarksState<S>> {
    * @param name name
    * @return meter with specified name
    */
-  public BenchmarksMeter meter(String name) {
+  public BenchmarkMeter meter(String name) {
     return metrics.meter(settings.taskName() + "-" + name);
   }
 
   /**
-   * Runs given function in the state. It also executes {@link BenchmarksState#start()} before and
-   * {@link BenchmarksState#shutdown()} after.
+   * Runs given function in the state. It also executes {@link BenchmarkState#start()} before and
+   * {@link BenchmarkState#shutdown()} after.
    *
    * <p>NOTICE: It's only for synchronous code.
    *
@@ -248,8 +248,8 @@ public class BenchmarksState<S extends BenchmarksState<S>> {
   }
 
   /**
-   * Runs given function on this state. It also executes {@link BenchmarksState#start()} before and
-   * {@link BenchmarksState#shutdown()} after.
+   * Runs given function on this state. It also executes {@link BenchmarkState#start()} before and
+   * {@link BenchmarkState#shutdown()} after.
    *
    * <p>NOTICE: It's only for asynchronous code.
    *
@@ -294,8 +294,8 @@ public class BenchmarksState<S extends BenchmarksState<S>> {
    * invoked with given intervals, according to the benchmark rampUp settings. And when the resource
    * will be available then it will start executing the unitOfWork. And when execution of the
    * unitOfWorks will be finished (by time completion or by iteration's completion) the resource
-   * will be released with the cleanUp function. It also executes {@link BenchmarksState#start()}
-   * before and {@link BenchmarksState#shutdown()} after.
+   * will be released with the cleanUp function. It also executes {@link BenchmarkState#start()}
+   * before and {@link BenchmarkState#shutdown()} after.
    *
    * @param setUp a function that should return some T type which one will be passed into next to
    *     the argument. Also, this function will be invoked with some ramp-up strategy, and when it
@@ -356,10 +356,10 @@ public class BenchmarksState<S extends BenchmarksState<S>> {
                               .subscribeOn(scheduler)
                               .map(
                                   setUpResult ->
-                                      new BenchmarksTask<>(
+                                      new BenchmarkTask<>(
                                           self, setUpResult, unitOfWork, cleanUp, scheduler))
                               .doOnNext(scheduler::schedule)
-                              .flatMap(BenchmarksTask::completionMono);
+                              .flatMap(BenchmarkTask::completionMono);
                         });
               },
               Integer.MAX_VALUE,

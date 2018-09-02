@@ -1,8 +1,8 @@
 package io.scalecube.benchmarks;
 
-import static io.scalecube.benchmarks.BenchmarksTask.Status.COMPLETED;
-import static io.scalecube.benchmarks.BenchmarksTask.Status.COMPLETING;
-import static io.scalecube.benchmarks.BenchmarksTask.Status.SCHEDULED;
+import static io.scalecube.benchmarks.BenchmarkTask.Status.COMPLETED;
+import static io.scalecube.benchmarks.BenchmarkTask.Status.COMPLETING;
+import static io.scalecube.benchmarks.BenchmarkTask.Status.SCHEDULED;
 
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
@@ -18,9 +18,9 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Scheduler;
 
-public class BenchmarksTask<S extends BenchmarksState<S>, T> implements Runnable {
+public class BenchmarkTask<S extends BenchmarkState<S>, T> implements Runnable {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(BenchmarksTask.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(BenchmarkTask.class);
 
   public enum Status {
     SCHEDULED,
@@ -50,7 +50,7 @@ public class BenchmarksTask<S extends BenchmarksState<S>, T> implements Runnable
    * @param cleanUp a function that should clean up some T's resources.
    * @param scheduler a scheduler.
    */
-  public BenchmarksTask(
+  public BenchmarkTask(
       S benchmarksState,
       T setUpResult,
       BiFunction<Long, T, Publisher<?>> unitOfWork,
