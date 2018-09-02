@@ -29,10 +29,11 @@ public class RampUpExampleBenchmarkRunner {
             (rampUpIteration, state) -> Mono.just(new ServiceCaller(state.exampleService())),
             state -> {
               BenchmarkTimer timer = state.timer("timer");
-              return (iteration, serviceCaller) -> {
-                Context timeContext = timer.time();
-                return serviceCaller.call("hello").doOnTerminate(timeContext::stop);
-              };
+              return serviceCaller ->
+                  (i, task) -> {
+                    Context timeContext = timer.time();
+                    return serviceCaller.call("hello").doOnTerminate(timeContext::stop);
+                  };
             },
             (state, serviceCaller) -> serviceCaller.close());
   }
