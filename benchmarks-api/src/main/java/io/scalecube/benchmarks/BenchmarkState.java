@@ -301,11 +301,7 @@ public class BenchmarkState<S extends BenchmarkState<S>> {
    *     the argument. Also, this function will be invoked with some ramp-up strategy, and when it
    *     will be invoked it will start executing the unitOfWork, which one specified as the second
    *     argument of this method.
-   * @param func a function that should return the execution to be tested for the given S. This
-   *     execution would run on all positive values of Long (i.e. the benchmark itself) On the
-   *     return value, as it is a Publisher, The benchmark test would {@link
-   *     Publisher#subscribe(Subscriber) subscribe}, And upon all subscriptions - await for
-   *     termination.
+   * @param func a function that should return the execution to be tested for the given S.
    * @param cleanUp a function that should clean up some T's resources.
    */
   public final <T> void runWithRampUp(
@@ -325,7 +321,6 @@ public class BenchmarkState<S extends BenchmarkState<S>> {
           .take(settings.rampUpDuration())
           .flatMap(
               rampUpIteration -> {
-
                 // select scheduler and bind tasks to it
                 int schedulerIndex =
                     (int) ((rampUpIteration & Long.MAX_VALUE) % schedulers().size());
@@ -333,34 +328,15 @@ public class BenchmarkState<S extends BenchmarkState<S>> {
 
                 return Flux.range(0, Math.max(1, settings.injectorsPerRampUpInterval()))
                     .flatMap(
-                        iteration1 -> {
-                          // create tasks on selected scheduler
-                          Flux<T> setUpFactory =
-                              Flux.create(
-                                  (FluxSink<T> sink) -> {
-                                    Flux<T> deferSetUp =
-                                        Flux.defer(() -> setUp.apply(rampUpIteration, self));
-                                    deferSetUp.subscribe(
-                                        sink::next,
-                                        ex -> {
-                                          LOGGER.error(
-                                              "Exception occured on setUp at rampUpIteration: {}, "
-                                                  + "cause: {}, task won't start",
-                                              rampUpIteration,
-                                              ex);
-                                          sink.complete();
-                                        },
-                                        sink::complete);
-                                  });
-                          return setUpFactory
-                              .subscribeOn(scheduler)
-                              .map(
-                                  setUpResult ->
-                                      new BenchmarkTask<>(
-                                          self, setUpResult, unitOfWork, cleanUp, scheduler))
-                              .doOnNext(scheduler::schedule)
-                              .flatMap(BenchmarkTask::completionMono);
-                        });
+                        iteration1 ->
+                            createSetUpFactory(setUp, self, rampUpIteration)
+                                .subscribeOn(scheduler)
+                                .map(
+                                    setUpResult ->
+                                        new BenchmarkTask<>(
+                                            self, setUpResult, unitOfWork, cleanUp, scheduler))
+                                .doOnNext(scheduler::schedule)
+                                .flatMap(BenchmarkTask::completionMono));
               },
               Integer.MAX_VALUE,
               Integer.MAX_VALUE)
@@ -368,5 +344,26 @@ public class BenchmarkState<S extends BenchmarkState<S>> {
     } finally {
       self.shutdown();
     }
+  }
+
+  private <T> Flux<T> createSetUpFactory(
+      BiFunction<Long, S, Publisher<T>> setUp, S self, Long rampUpIteration) {
+    // create tasks on selected scheduler
+    return Flux.create(
+        (FluxSink<T> sink) -> {
+          Flux<T> deferSetUp = Flux.defer(() -> setUp.apply(rampUpIteration, self));
+          deferSetUp.subscribe(
+              sink::next,
+              ex -> {
+                LOGGER.error(
+                    "Exception occured on setUp at rampUpIteration: {}, "
+                        + "cause: {}, task won't start",
+                    rampUpIteration,
+                    ex,
+                    ex);
+                sink.complete();
+              },
+              sink::complete);
+        });
   }
 }
