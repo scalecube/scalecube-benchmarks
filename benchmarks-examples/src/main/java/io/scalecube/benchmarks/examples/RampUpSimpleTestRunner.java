@@ -1,6 +1,6 @@
 package io.scalecube.benchmarks.examples;
 
-import io.scalecube.benchmarks.BenchmarksSettings;
+import io.scalecube.benchmarks.BenchmarkSettings;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.concurrent.TimeUnit;
@@ -18,8 +18,8 @@ public class RampUpSimpleTestRunner {
    * @param args command line args
    */
   public static void main(String[] args) {
-    BenchmarksSettings settings =
-        BenchmarksSettings.from(args)
+    BenchmarkSettings settings =
+        BenchmarkSettings.from(args)
             .injectors(5)
             .messageRate(5)
             .rampUpDuration(Duration.ofSeconds(5))
@@ -28,7 +28,7 @@ public class RampUpSimpleTestRunner {
             .durationUnit(TimeUnit.NANOSECONDS)
             .build();
 
-    new ExampleServiceBenchmarksState(settings)
+    new ExampleServiceBenchmarkState(settings)
         .runWithRampUp(
             // set up
             (rampUpIteration, state) -> {

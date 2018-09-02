@@ -1,8 +1,8 @@
 package io.scalecube.benchmarks.examples;
 
-import io.scalecube.benchmarks.BenchmarksSettings;
-import io.scalecube.benchmarks.metrics.BenchmarksTimer;
-import io.scalecube.benchmarks.metrics.BenchmarksTimer.Context;
+import io.scalecube.benchmarks.BenchmarkSettings;
+import io.scalecube.benchmarks.metrics.BenchmarkTimer;
+import io.scalecube.benchmarks.metrics.BenchmarkTimer.Context;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 import reactor.core.publisher.Mono;
@@ -15,8 +15,8 @@ public class RampUpExampleFailingSetUpRunner {
    * @param args command line args
    */
   public static void main(String[] args) {
-    BenchmarksSettings settings =
-        BenchmarksSettings.from(args)
+    BenchmarkSettings settings =
+        BenchmarkSettings.from(args)
             .rampUpDuration(Duration.ofSeconds(10))
             .rampUpInterval(Duration.ofSeconds(1))
             .executionTaskDuration(Duration.ofSeconds(30))
@@ -24,7 +24,7 @@ public class RampUpExampleFailingSetUpRunner {
             .durationUnit(TimeUnit.NANOSECONDS)
             .build();
 
-    new ExampleServiceBenchmarksState(settings)
+    new ExampleServiceBenchmarkState(settings)
         .runWithRampUp(
             (rampUpIteration, state) -> {
               if (rampUpIteration > 1) {
@@ -34,7 +34,7 @@ public class RampUpExampleFailingSetUpRunner {
               }
             },
             state -> {
-              BenchmarksTimer timer = state.timer("timer");
+              BenchmarkTimer timer = state.timer("timer");
               return (iteration, serviceCaller) -> {
                 Context timeContext = timer.time();
                 return serviceCaller.call("hello").doOnTerminate(timeContext::stop);

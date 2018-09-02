@@ -1,13 +1,13 @@
 package io.scalecube.benchmarks.examples;
 
-import io.scalecube.benchmarks.BenchmarksSettings;
-import io.scalecube.benchmarks.BenchmarksState;
+import io.scalecube.benchmarks.BenchmarkSettings;
+import io.scalecube.benchmarks.BenchmarkState;
 
-public class ExampleServiceBenchmarksState extends BenchmarksState<ExampleServiceBenchmarksState> {
+public class ExampleServiceBenchmarkState extends BenchmarkState<ExampleServiceBenchmarkState> {
 
   private ExampleService exampleService;
 
-  public ExampleServiceBenchmarksState(BenchmarksSettings settings) {
+  public ExampleServiceBenchmarkState(BenchmarkSettings settings) {
     super(settings);
   }
 
