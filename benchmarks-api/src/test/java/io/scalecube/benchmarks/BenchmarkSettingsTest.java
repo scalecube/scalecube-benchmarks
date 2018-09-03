@@ -5,13 +5,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import java.time.Duration;
 import org.junit.jupiter.api.Test;
 
-class BenchmarksSettingsTest {
+class BenchmarkSettingsTest {
   private static final String[] EMPTY_ARGS = new String[] {};
 
   @Test
   void testOneUserAndSevenMsgRate() {
-    BenchmarksSettings settings =
-        BenchmarksSettings.from(EMPTY_ARGS)
+    BenchmarkSettings settings =
+        BenchmarkSettings.from(EMPTY_ARGS)
             .injectors(1)
             .messageRate(7)
             .executionTaskDuration(Duration.ofSeconds(10))
@@ -32,8 +32,8 @@ class BenchmarksSettingsTest {
     int injectors = 1000;
 
     // When
-    BenchmarksSettings settings =
-        BenchmarksSettings.from(EMPTY_ARGS)
+    BenchmarkSettings settings =
+        BenchmarkSettings.from(EMPTY_ARGS)
             .injectors(injectors)
             .rampUpDuration(Duration.ofSeconds(20))
             .messageRate(10_000)

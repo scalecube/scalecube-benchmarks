@@ -2,7 +2,7 @@ package io.scalecube.benchmarks.metrics;
 
 import java.util.concurrent.TimeUnit;
 
-public interface BenchmarksTimer {
+public interface BenchmarkTimer {
 
   Context NO_OP_CONTEXT =
       () -> {

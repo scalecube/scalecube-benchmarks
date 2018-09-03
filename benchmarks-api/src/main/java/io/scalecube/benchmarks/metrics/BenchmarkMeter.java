@@ -1,6 +1,6 @@
 package io.scalecube.benchmarks.metrics;
 
-public interface BenchmarksMeter {
+public interface BenchmarkMeter {
 
   void mark();
 

@@ -7,7 +7,7 @@ import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 import reactor.core.publisher.Mono;
 
-public class RampUpExampleFailingSetUpRunner {
+public class RampUpExampleBenchmarkRunner {
 
   /**
    * Runs example benchmark.
@@ -17,29 +17,28 @@ public class RampUpExampleFailingSetUpRunner {
   public static void main(String[] args) {
     BenchmarkSettings settings =
         BenchmarkSettings.from(args)
-            .rampUpDuration(Duration.ofSeconds(10))
-            .rampUpInterval(Duration.ofSeconds(1))
-            .executionTaskDuration(Duration.ofSeconds(30))
-            .executionTaskInterval(Duration.ZERO)
+            .rampUpDuration(Duration.ofSeconds(30))
+            .injectors(1)
+            .messageRate(1)
+            .executionTaskDuration(Duration.ofSeconds(180))
             .durationUnit(TimeUnit.NANOSECONDS)
             .build();
 
     new ExampleServiceBenchmarkState(settings)
         .runWithRampUp(
-            (rampUpIteration, state) -> {
-              if (rampUpIteration > 1) {
-                return Mono.error(new RuntimeException("Exception instead of setUp result"));
-              } else {
-                return Mono.just(new ServiceCaller(state.exampleService()));
-              }
-            },
+            (rampUpIteration, state) -> Mono.just(new ServiceCaller(state.exampleService())),
             state -> {
               BenchmarkTimer timer = state.timer("timer");
               return serviceCaller ->
-                  (i, task) -> {
-                    Context timeContext = timer.time();
-                    return serviceCaller.call("hello").doOnTerminate(timeContext::stop);
-                  };
+                  (i, task) ->
+                      Mono.defer(
+                          () -> {
+                            Context timeContext = timer.time();
+                            return serviceCaller
+                                .call("hello")
+                                .doOnTerminate(timeContext::stop)
+                                .doOnTerminate(task::scheduleWithInterval);
+                          });
             },
             (state, serviceCaller) -> serviceCaller.close());
   }

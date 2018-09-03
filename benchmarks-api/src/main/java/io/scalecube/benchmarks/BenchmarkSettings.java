@@ -13,13 +13,13 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
 
-public class BenchmarksSettings {
+public class BenchmarkSettings {
 
   private static final int N_THREADS = Runtime.getRuntime().availableProcessors();
   private static final int CONCURRENCY = 16;
   private static final Duration EXECUTION_TASK_DURATION = Duration.ofSeconds(120);
   private static final Duration EXECUTION_TASK_INTERVAL = Duration.ZERO;
-  private static final Duration MINIMAL_INTERVAL = Duration.ofMillis(100);
+  private static final Duration MIN_INTERVAL = Duration.ofMillis(100);
   private static final Duration REPORTER_INTERVAL = Duration.ofSeconds(3);
   private static final TimeUnit DURATION_UNIT = TimeUnit.MILLISECONDS;
   private static final TimeUnit RATE_UNIT = TimeUnit.SECONDS;
@@ -50,6 +50,7 @@ public class BenchmarksSettings {
   private final int messageRate;
   private final int injectorsPerRampUpInterval;
   private final int messagesPerExecutionInterval;
+  private final Duration minInterval;
 
   private final Map<String, String> options;
 
@@ -64,7 +65,7 @@ public class BenchmarksSettings {
     return builder;
   }
 
-  private BenchmarksSettings(Builder builder) {
+  private BenchmarkSettings(Builder builder) {
     this.numberThreads = builder.numberThreads;
     this.executionTaskDuration = builder.executionTaskDuration;
     this.executionTaskInterval = builder.executionTaskInterval;
@@ -82,6 +83,7 @@ public class BenchmarksSettings {
     this.injectors = builder.injectors;
     this.messageRate = builder.messageRate;
     this.concurrency = builder.concurrency;
+    this.minInterval = builder.minInterval;
 
     StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
     this.taskName = minifyClassName(stackTrace[stackTrace.length - 1].getClassName());
@@ -179,9 +181,10 @@ public class BenchmarksSettings {
 
   @Override
   public String toString() {
-    final StringBuilder sb = new StringBuilder("BenchmarksSettings{");
+    final StringBuilder sb = new StringBuilder("BenchmarkSettings{");
     sb.append("numberThreads=").append(numberThreads);
     sb.append(", concurrency=").append(concurrency);
+    sb.append(", minInterval=").append(minInterval);
     sb.append(", executionTaskDuration=").append(executionTaskDuration);
     sb.append(", executionTaskInterval=").append(executionTaskInterval);
     sb.append(", numOfIterations=").append(numOfIterations);
@@ -227,6 +230,7 @@ public class BenchmarksSettings {
     private int injectorsPerRampUpInterval; // calculated
     private int messagesPerExecutionInterval; // calculated
     private int concurrency = CONCURRENCY;
+    private Duration minInterval = MIN_INTERVAL;
 
     private Builder() {
       this.options = new HashMap<>();
@@ -251,6 +255,7 @@ public class BenchmarksSettings {
       this.injectors = that.injectors;
       this.messageRate = that.messageRate;
       this.concurrency = that.concurrency;
+      this.minInterval = that.minInterval;
     }
 
     public Builder numberThreads(int numThreads) {
@@ -328,8 +333,13 @@ public class BenchmarksSettings {
       return this;
     }
 
-    public BenchmarksSettings build() {
-      return new BenchmarksSettings(new Builder(this).parseArgs().calculateDynamicParams());
+    public Builder minInterval(Duration minInterval) {
+      this.minInterval = minInterval;
+      return this;
+    }
+
+    public BenchmarkSettings build() {
+      return new BenchmarkSettings(new Builder(this).parseArgs().calculateDynamicParams());
     }
 
     private Builder calculateDynamicParams() {
@@ -357,15 +367,15 @@ public class BenchmarksSettings {
       // calculate rampup parameters
       long rampUpDurationMillis = this.rampUpDuration.toMillis();
 
-      if (rampUpDurationMillis / injectors >= MINIMAL_INTERVAL.toMillis()) {
+      if (rampUpDurationMillis / injectors >= minInterval.toMillis()) {
         // 1. Can provide rampup injecting 1 injector per minimal interval
         this.injectorsPerRampUpInterval = 1;
         this.rampUpInterval = Duration.ofMillis(rampUpDurationMillis / injectors);
       } else {
         // 2. Need to inject multiple injectors per minimal interval to provide rampup
-        long intervals = Math.floorDiv(rampUpDurationMillis, MINIMAL_INTERVAL.toMillis());
+        long intervals = Math.floorDiv(rampUpDurationMillis, minInterval.toMillis());
         this.injectorsPerRampUpInterval = (int) Math.floorDiv(injectors, intervals);
-        this.rampUpInterval = MINIMAL_INTERVAL;
+        this.rampUpInterval = minInterval;
       }
 
       // calculate execution parameters
@@ -376,19 +386,19 @@ public class BenchmarksSettings {
         this.messagesPerExecutionInterval = 1;
         this.executionTaskInterval = Duration.ofMillis((long) (1000 / injectorRate));
       } else {
-        int maxInjectorsLoad = (int) Math.floorDiv(injectors * 1000, MINIMAL_INTERVAL.toMillis());
+        int maxInjectorsLoad = (int) Math.floorDiv(injectors * 1000, minInterval.toMillis());
         if (maxInjectorsLoad >= messageRate) {
           // 2. Still can provide the required rate sending 1 mesg per tick, execution interval =
           // [MIN_INTERVAL, 1 sec]
           this.messagesPerExecutionInterval = 1;
           this.executionTaskInterval =
               Duration.ofMillis(
-                  Math.floorDiv(maxInjectorsLoad, messageRate) * MINIMAL_INTERVAL.toMillis());
+                  Math.floorDiv(maxInjectorsLoad, messageRate) * minInterval.toMillis());
         } else {
           // 3. Have to send multiple messages per execution interval , interval already minimum
           // (MIN_INTERVAL)
           this.messagesPerExecutionInterval = Math.floorDiv(messageRate, maxInjectorsLoad);
-          this.executionTaskInterval = MINIMAL_INTERVAL;
+          this.executionTaskInterval = minInterval;
         }
       }
       return this;
@@ -409,6 +419,9 @@ public class BenchmarksSettings {
               break;
             case "executionTaskDurationInSec":
               executionTaskDuration(Duration.ofSeconds(Long.parseLong(value)));
+              break;
+            case "minIntervalInMillis":
+              minInterval(Duration.ofMillis(Long.parseLong(value)));
               break;
             case "executionTaskIntervalInMillis":
               executionTaskInterval(Duration.ofMillis(Long.parseLong(value)));
