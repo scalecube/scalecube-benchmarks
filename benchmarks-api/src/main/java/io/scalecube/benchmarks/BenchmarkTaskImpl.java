@@ -66,10 +66,15 @@ public class BenchmarkTaskImpl implements BenchmarkTask, Runnable {
   @Override
   public void schedule(Duration interval) {
     if (interval == null || interval.isZero()) {
-      scheduler.schedule(this);
+      scheduleNow();
     } else {
       scheduler.schedule(this, interval.toMillis(), TimeUnit.MILLISECONDS);
     }
+  }
+
+  @Override
+  public void scheduleWithInterval() {
+    schedule(settings.executionTaskInterval());
   }
 
   @Override

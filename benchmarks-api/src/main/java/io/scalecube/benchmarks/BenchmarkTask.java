@@ -8,5 +8,7 @@ public interface BenchmarkTask {
 
   void schedule(Duration interval);
 
+  void scheduleWithInterval();
+
   void scheduleNow();
 }

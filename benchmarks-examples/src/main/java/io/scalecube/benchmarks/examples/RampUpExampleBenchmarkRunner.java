@@ -18,9 +18,9 @@ public class RampUpExampleBenchmarkRunner {
     BenchmarkSettings settings =
         BenchmarkSettings.from(args)
             .rampUpDuration(Duration.ofSeconds(30))
-            .injectors(10_000)
+            .injectors(1000)
             .messageRate(100_000)
-            .executionTaskDuration(Duration.ofSeconds(30))
+            .executionTaskDuration(Duration.ofSeconds(180))
             .durationUnit(TimeUnit.NANOSECONDS)
             .build();
 
@@ -35,7 +35,7 @@ public class RampUpExampleBenchmarkRunner {
                     return serviceCaller
                         .call("hello")
                         .doOnTerminate(timeContext::stop)
-                        .doOnTerminate(() -> task.schedule(settings.executionTaskInterval()));
+                        .doOnTerminate(task::scheduleWithInterval);
                   };
             },
             (state, serviceCaller) -> serviceCaller.close());

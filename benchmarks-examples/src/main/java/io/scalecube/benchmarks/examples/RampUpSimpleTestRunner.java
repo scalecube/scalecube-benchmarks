@@ -38,11 +38,11 @@ public class RampUpSimpleTestRunner {
             // job
             state ->
                 userId ->
-                    (i, task) -> {
-                      LOGGER.info("User: " + userId + " | iteration: " + i);
-                      return Mono.fromRunnable(RampUpSimpleTestRunner::heavy)
-                          .doOnTerminate(task::scheduleNow);
-                    },
+                    (i, task) ->
+                        Mono.fromRunnable(RampUpSimpleTestRunner::heavy)
+                            .doOnTerminate(
+                                () -> LOGGER.info("User: " + userId + " | iteration: " + i))
+                            .doOnTerminate(task::scheduleNow),
             // teardown
             (state, userId) -> {
               LOGGER.info("User done:" + userId);
