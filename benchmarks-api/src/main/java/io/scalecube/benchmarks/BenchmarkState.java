@@ -14,6 +14,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.LongStream;
@@ -306,7 +307,7 @@ public class BenchmarkState<S extends BenchmarkState<S>> {
    */
   public final <T> void runWithRampUp(
       BiFunction<Long, S, Publisher<T>> setUp,
-      Function<S, BiFunction<Long, T, Publisher<?>>> func,
+      Function<S, Function<T, BiFunction<Long, BenchmarkTask, Publisher<?>>>> func,
       BiFunction<S, T, Mono<Void>> cleanUp) {
 
     // noinspection unchecked
@@ -315,28 +316,31 @@ public class BenchmarkState<S extends BenchmarkState<S>> {
     try {
       self.start();
 
-      BiFunction<Long, T, Publisher<?>> unitOfWork = func.apply(self);
+      Function<T, BiFunction<Long, BenchmarkTask, Publisher<?>>> unitOfWork = func.apply(self);
 
       Flux.interval(Duration.ZERO, settings.rampUpInterval())
           .take(settings.rampUpDuration())
           .flatMap(
               rampUpIteration -> {
-                // select scheduler and bind tasks to it
-                int schedulerIndex =
-                    (int) ((rampUpIteration & Long.MAX_VALUE) % schedulers().size());
-                Scheduler scheduler = schedulers().get(schedulerIndex);
-
+                Scheduler scheduler = selectScheduler(rampUpIteration);
                 return Flux.range(0, Math.max(1, settings.injectorsPerRampUpInterval()))
                     .flatMap(
                         iteration1 ->
                             createSetUpFactory(setUp, self, rampUpIteration)
                                 .subscribeOn(scheduler)
                                 .map(
-                                    setUpResult ->
-                                        new BenchmarkTask<>(
-                                            self, setUpResult, unitOfWork, cleanUp, scheduler))
+                                    setUpResult -> {
+                                      BiFunction<Long, BenchmarkTask, Publisher<?>> unitOfWork1 =
+                                          unitOfWork.apply(setUpResult);
+
+                                      Supplier<Mono<Void>> cleanUp1 =
+                                          () -> cleanUp.apply(self, setUpResult);
+
+                                      return new BenchmarkTaskImpl(
+                                          self.settings, scheduler, unitOfWork1, cleanUp1);
+                                    })
                                 .doOnNext(scheduler::schedule)
-                                .flatMap(BenchmarkTask::completionMono));
+                                .flatMap(BenchmarkTaskImpl::completionMono));
               },
               Integer.MAX_VALUE,
               Integer.MAX_VALUE)
@@ -344,6 +348,12 @@ public class BenchmarkState<S extends BenchmarkState<S>> {
     } finally {
       self.shutdown();
     }
+  }
+
+  private Scheduler selectScheduler(Long rampUpIteration) {
+    // select scheduler and bind tasks to it
+    int schedulerIndex = (int) ((rampUpIteration & Long.MAX_VALUE) % schedulers().size());
+    return schedulers().get(schedulerIndex);
   }
 
   private <T> Flux<T> createSetUpFactory(

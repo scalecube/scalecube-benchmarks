@@ -35,19 +35,20 @@ public class RampUpSimpleTestRunner {
               LOGGER.info("User started: " + rampUpIteration);
               return Mono.just(rampUpIteration);
             },
-
             // job
             state ->
-                (iteration, userId) -> {
-                  LOGGER.info("User: " + userId + " | iteration: " + iteration);
-                  return Mono.fromRunnable(RampUpSimpleTestRunner::heavy);
-                },
-
+                userId ->
+                    (i, task) ->
+                        Mono.fromRunnable(RampUpSimpleTestRunner::heavy)
+                            .doOnTerminate(
+                                () -> LOGGER.info("User: " + userId + " | iteration: " + i))
+                            .doOnTerminate(task::scheduleWithInterval),
             // teardown
             (state, userId) -> {
               LOGGER.info("User done:" + userId);
               return Mono.empty();
             });
+
     System.out.println(LocalDateTime.now() + " Test over");
   }
 

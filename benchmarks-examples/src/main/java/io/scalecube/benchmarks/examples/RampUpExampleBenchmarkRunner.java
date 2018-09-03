@@ -18,9 +18,9 @@ public class RampUpExampleBenchmarkRunner {
     BenchmarkSettings settings =
         BenchmarkSettings.from(args)
             .rampUpDuration(Duration.ofSeconds(30))
-            .injectors(10_000)
-            .messageRate(50_000)
-            .executionTaskDuration(Duration.ofSeconds(30))
+            .injectors(1)
+            .messageRate(1)
+            .executionTaskDuration(Duration.ofSeconds(180))
             .durationUnit(TimeUnit.NANOSECONDS)
             .build();
 
@@ -29,10 +29,16 @@ public class RampUpExampleBenchmarkRunner {
             (rampUpIteration, state) -> Mono.just(new ServiceCaller(state.exampleService())),
             state -> {
               BenchmarkTimer timer = state.timer("timer");
-              return (iteration, serviceCaller) -> {
-                Context timeContext = timer.time();
-                return serviceCaller.call("hello").doOnTerminate(timeContext::stop);
-              };
+              return serviceCaller ->
+                  (i, task) ->
+                      Mono.defer(
+                          () -> {
+                            Context timeContext = timer.time();
+                            return serviceCaller
+                                .call("hello")
+                                .doOnTerminate(timeContext::stop)
+                                .doOnTerminate(task::scheduleWithInterval);
+                          });
             },
             (state, serviceCaller) -> serviceCaller.close());
   }
