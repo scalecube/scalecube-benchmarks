@@ -40,7 +40,8 @@ public class RampUpSimpleTestRunner {
                 userId ->
                     (i, task) -> {
                       LOGGER.info("User: " + userId + " | iteration: " + i);
-                      return Mono.fromRunnable(RampUpSimpleTestRunner::heavy);
+                      return Mono.fromRunnable(RampUpSimpleTestRunner::heavy)
+                          .doOnTerminate(task::scheduleNow);
                     },
             // teardown
             (state, userId) -> {

@@ -19,7 +19,7 @@ public class RampUpExampleBenchmarkRunner {
         BenchmarkSettings.from(args)
             .rampUpDuration(Duration.ofSeconds(30))
             .injectors(10_000)
-            .messageRate(50_000)
+            .messageRate(100_000)
             .executionTaskDuration(Duration.ofSeconds(30))
             .durationUnit(TimeUnit.NANOSECONDS)
             .build();
@@ -32,7 +32,10 @@ public class RampUpExampleBenchmarkRunner {
               return serviceCaller ->
                   (i, task) -> {
                     Context timeContext = timer.time();
-                    return serviceCaller.call("hello").doOnTerminate(timeContext::stop);
+                    return serviceCaller
+                        .call("hello")
+                        .doOnTerminate(timeContext::stop)
+                        .doOnTerminate(() -> task.schedule(settings.executionTaskInterval()));
                   };
             },
             (state, serviceCaller) -> serviceCaller.close());
