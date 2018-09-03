@@ -97,12 +97,13 @@ public class BenchmarkTaskImpl implements BenchmarkTask, Runnable {
     if (isScheduled()) { // executing
       long iter = iterationsCounter.incrementAndGet();
 
-      Flux.defer(() -> unitOfWork.apply(iter, this))
-          .doOnError(
-              ex ->
-                  LOGGER.warn(
-                      "Exception occurred on unitOfWork at iteration: {}, cause: {}", iter, ex))
-          .subscribe();
+      Publisher<?> publisher = unitOfWork.apply(iter, this);
+      if (publisher instanceof Mono) {
+        ((Mono<?>) publisher).subscribe();
+      } else if (publisher instanceof Flux) {
+        ((Flux<?>) publisher).subscribe();
+      }
+
       return;
     }
 
