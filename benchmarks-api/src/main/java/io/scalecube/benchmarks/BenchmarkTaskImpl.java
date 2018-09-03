@@ -97,9 +97,7 @@ public class BenchmarkTaskImpl implements BenchmarkTask, Runnable {
     if (isScheduled()) { // executing
       long iter = iterationsCounter.incrementAndGet();
 
-      Flux<?> defer = Flux.defer(() -> unitOfWork.apply(iter, this));
-
-      Flux.from(defer)
+      Flux.defer(() -> unitOfWork.apply(iter, this))
           .doOnError(
               ex ->
                   LOGGER.warn(
