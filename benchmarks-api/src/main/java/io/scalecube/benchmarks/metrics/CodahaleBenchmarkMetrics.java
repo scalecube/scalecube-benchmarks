@@ -52,12 +52,16 @@ public class CodahaleBenchmarkMetrics implements BenchmarkMetrics {
     return new BenchmarkMeter() {
       @Override
       public void mark() {
-        meter.mark();
+        if (enabled.get()) {
+          meter.mark();
+        }
       }
 
       @Override
       public void mark(long value) {
-        meter.mark(value);
+        if (enabled.get()) {
+          meter.mark(value);
+        }
       }
     };
   }
