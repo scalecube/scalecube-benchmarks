@@ -1,14 +1,10 @@
 package io.scalecube.benchmarks;
 
-import java.time.Duration;
+import reactor.core.scheduler.Scheduler;
 
-public interface BenchmarkTask {
+public interface BenchmarkTask extends Runnable {
 
   BenchmarkSettings settings();
 
-  void schedule(Duration interval);
-
-  void scheduleWithInterval();
-
-  void scheduleNow();
+  Scheduler scheduler();
 }

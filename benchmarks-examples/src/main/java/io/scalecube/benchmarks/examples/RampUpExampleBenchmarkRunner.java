@@ -37,7 +37,13 @@ public class RampUpExampleBenchmarkRunner {
                             return serviceCaller
                                 .call("hello")
                                 .doOnTerminate(timeContext::stop)
-                                .doOnTerminate(task::scheduleWithInterval);
+                                .doOnTerminate(
+                                    () ->
+                                        task.scheduler()
+                                            .schedule(
+                                                task,
+                                                task.settings().executionTaskInterval().toMillis(),
+                                                TimeUnit.MILLISECONDS));
                           });
             },
             (state, serviceCaller) -> serviceCaller.close());
