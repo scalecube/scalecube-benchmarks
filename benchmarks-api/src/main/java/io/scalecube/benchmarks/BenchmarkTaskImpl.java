@@ -4,7 +4,6 @@ import static io.scalecube.benchmarks.BenchmarkTaskImpl.Status.COMPLETED;
 import static io.scalecube.benchmarks.BenchmarkTaskImpl.Status.COMPLETING;
 import static io.scalecube.benchmarks.BenchmarkTaskImpl.Status.SCHEDULED;
 
-import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -19,7 +18,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Scheduler;
 
-public class BenchmarkTaskImpl implements BenchmarkTask, Runnable {
+public class BenchmarkTaskImpl implements BenchmarkTask {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(BenchmarkTaskImpl.class);
 
@@ -64,22 +63,8 @@ public class BenchmarkTaskImpl implements BenchmarkTask, Runnable {
   }
 
   @Override
-  public void schedule(Duration interval) {
-    if (interval == null || interval.isZero()) {
-      scheduleNow();
-    } else {
-      scheduler.schedule(this, interval.toMillis(), TimeUnit.MILLISECONDS);
-    }
-  }
-
-  @Override
-  public void scheduleWithInterval() {
-    schedule(settings.executionTaskInterval());
-  }
-
-  @Override
-  public void scheduleNow() {
-    scheduler.schedule(this);
+  public Scheduler scheduler() {
+    return scheduler;
   }
 
   @Override

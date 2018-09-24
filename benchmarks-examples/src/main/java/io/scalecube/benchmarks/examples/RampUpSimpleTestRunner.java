@@ -42,7 +42,13 @@ public class RampUpSimpleTestRunner {
                         Mono.fromRunnable(RampUpSimpleTestRunner::heavy)
                             .doOnTerminate(
                                 () -> LOGGER.info("User: " + userId + " | iteration: " + i))
-                            .doOnTerminate(task::scheduleWithInterval),
+                            .doOnTerminate(
+                                () ->
+                                    task.scheduler()
+                                        .schedule(
+                                            task,
+                                            task.settings().executionTaskInterval().toMillis(),
+                                            TimeUnit.MILLISECONDS)),
             // teardown
             (state, userId) -> {
               LOGGER.info("User done:" + userId);
