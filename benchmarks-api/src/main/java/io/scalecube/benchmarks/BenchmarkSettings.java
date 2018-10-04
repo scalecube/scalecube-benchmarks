@@ -17,14 +17,14 @@ public class BenchmarkSettings {
 
   private static final int N_THREADS = Runtime.getRuntime().availableProcessors();
   private static final int CONCURRENCY = 16;
-  private static final Duration EXECUTION_TASK_DURATION = Duration.ofSeconds(120);
+  private static final Duration EXECUTION_TASK_DURATION = Duration.ofSeconds(360);
   private static final Duration EXECUTION_TASK_INTERVAL = Duration.ZERO;
   private static final Duration MIN_INTERVAL = Duration.ofMillis(100);
   private static final Duration REPORTER_INTERVAL = Duration.ofSeconds(3);
   private static final TimeUnit DURATION_UNIT = TimeUnit.MILLISECONDS;
   private static final TimeUnit RATE_UNIT = TimeUnit.SECONDS;
   private static final long NUM_OF_ITERATIONS = Long.MAX_VALUE;
-  private static final Duration WARM_UP_DURATION = Duration.ofSeconds(20);
+  private static final Duration WARM_UP_DURATION = Duration.ofSeconds(45);
   private static final Duration RAMP_UP_DURATION = Duration.ofSeconds(10);
   private static final Duration RAMP_UP_INTERVAL = Duration.ofSeconds(1);
   private static final boolean CONSOLE_REPORTER_ENABLED = true;
