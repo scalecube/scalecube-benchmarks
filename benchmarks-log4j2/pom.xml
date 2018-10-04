@@ -5,7 +5,7 @@
   <parent>
     <artifactId>scalecube-benchmarks-parent</artifactId>
     <groupId>io.scalecube</groupId>
-    <version>1.2.2</version>
+    <version>1.2.3-SNAPSHOT</version>
   </parent>
 
   <artifactId>scalecube-benchmarks-log4j2</artifactId>
