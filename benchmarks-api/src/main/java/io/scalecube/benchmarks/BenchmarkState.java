@@ -9,7 +9,6 @@ import io.scalecube.benchmarks.metrics.CodahaleBenchmarkMetrics;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiFunction;
@@ -102,12 +101,11 @@ public class BenchmarkState<S extends BenchmarkState<S>> {
             .convertRatesTo(settings.rateUnit())
             .build(settings.csvReporterDirectory());
 
-    scheduler = Schedulers.fromExecutor(Executors.newFixedThreadPool(settings.numberThreads()));
+    scheduler = Schedulers.newParallel("par-scheduler", settings.numberThreads(), true);
 
     schedulers =
         IntStream.rangeClosed(1, settings.numberThreads())
-            .mapToObj(
-                i -> Schedulers.fromExecutorService(Executors.newSingleThreadScheduledExecutor()))
+            .mapToObj(i -> Schedulers.newSingle("single-scheduler", true))
             .collect(Collectors.toList());
 
     try {
