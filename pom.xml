@@ -30,7 +30,7 @@
 
   <properties>
     <uberjar.name>scalecube-benchmarks</uberjar.name>
-    <reactor-core.version>3.1.8.RELEASE</reactor-core.version>
+    <reactor-core.version>3.2.1.RELEASE</reactor-core.version>
     <jmh.version>1.21</jmh.version>
     <metrics.version>3.1.2</metrics.version>
     <metrics-jvm.version>3.0.2</metrics-jvm.version>
