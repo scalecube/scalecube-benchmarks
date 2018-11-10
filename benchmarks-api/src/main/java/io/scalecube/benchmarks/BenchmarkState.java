@@ -148,6 +148,7 @@ public class BenchmarkState<S extends BenchmarkState<S>> {
     if (!started.compareAndSet(true, false)) {
       throw new IllegalStateException("BenchmarkState is not started");
     }
+    LOGGER.info("Benchmarks is shutdown...");
 
     if (warmUpSubscriber != null) {
       warmUpSubscriber.dispose();
@@ -227,18 +228,20 @@ public class BenchmarkState<S extends BenchmarkState<S>> {
       // noinspection unchecked
       self.start();
 
-      Function<Long, Object> unitOfWork = func.apply(self);
+      Function<Long, Object> unitOfWork = wrap(func.apply(self));
 
       CountDownLatch latch = new CountDownLatch(1);
 
-      Flux.fromStream(LongStream.range(0, settings.numOfIterations()).boxed())
-          .parallel()
-          .runOn(scheduler())
-          .map(unitOfWork)
-          .doOnTerminate(latch::countDown)
-          .subscribe();
+      Disposable disposable =
+          Flux.fromStream(LongStream.range(0, settings.numOfIterations()).boxed())
+              .parallel()
+              .runOn(scheduler())
+              .map(unitOfWork)
+              .doOnTerminate(latch::countDown)
+              .subscribe();
 
       latch.await(settings.executionTaskDuration().toMillis(), TimeUnit.MILLISECONDS);
+      disposable.dispose();
     } catch (InterruptedException e) {
       throw Exceptions.propagate(e);
     } finally {
@@ -261,7 +264,7 @@ public class BenchmarkState<S extends BenchmarkState<S>> {
     try {
       self.start();
 
-      Function<Long, Publisher<?>> unitOfWork = func.apply(self);
+      Function<Long, Publisher<?>> unitOfWork = wrap(func.apply(self));
       int threads = settings.numberThreads();
       long countPerThread = settings.numOfIterations() / threads;
 
@@ -314,7 +317,8 @@ public class BenchmarkState<S extends BenchmarkState<S>> {
     try {
       self.start();
 
-      Function<T, BiFunction<Long, BenchmarkTask, Publisher<?>>> unitOfWork = func.apply(self);
+      Function<T, BiFunction<Long, BenchmarkTask, Publisher<?>>> unitOfWork =
+          wrap(func.apply(self));
 
       Flux.interval(Duration.ZERO, settings.rampUpInterval())
           .take(settings.rampUpDuration())
@@ -373,5 +377,16 @@ public class BenchmarkState<S extends BenchmarkState<S>> {
               },
               sink::complete);
         });
+  }
+
+  private <T, R> Function<T, R> wrap(Function<T, R> unitOfWork) {
+    return i -> {
+      try {
+        return unitOfWork.apply(i);
+      } catch (Exception e) {
+        LOGGER.error("Occurred exception into unitOfWork: {}", e);
+        throw Exceptions.propagate(e);
+      }
+    };
   }
 }
