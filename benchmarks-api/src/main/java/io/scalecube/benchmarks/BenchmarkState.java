@@ -176,6 +176,8 @@ public class BenchmarkState<S extends BenchmarkState<S>> {
       afterAll();
     } catch (Exception ex) {
       throw new IllegalStateException("BenchmarkState afterAll() failed: " + ex, ex);
+    } finally {
+      LOGGER.info("Benchmarks has shutdown");
     }
   }
 
@@ -224,6 +226,7 @@ public class BenchmarkState<S extends BenchmarkState<S>> {
   public final void runForSync(Function<S, Function<Long, Object>> func) {
     @SuppressWarnings("unchecked")
     S self = (S) this;
+    Disposable disposable = null;
     try {
       // noinspection unchecked
       self.start();
@@ -232,19 +235,21 @@ public class BenchmarkState<S extends BenchmarkState<S>> {
 
       CountDownLatch latch = new CountDownLatch(1);
 
-      Disposable disposable =
+      disposable =
           Flux.fromStream(LongStream.range(0, settings.numOfIterations()).boxed())
               .parallel()
               .runOn(scheduler())
               .map(unitOfWork)
               .doOnTerminate(latch::countDown)
-              .subscribe();
+              .subscribe(null, ex -> LOGGER.error("Unexpected exception occurred: " + ex));
 
       latch.await(settings.executionTaskDuration().toMillis(), TimeUnit.MILLISECONDS);
-      disposable.dispose();
     } catch (InterruptedException e) {
       throw Exceptions.propagate(e);
     } finally {
+      if (disposable != null) {
+        disposable.dispose();
+      }
       self.shutdown();
     }
   }
@@ -368,7 +373,7 @@ public class BenchmarkState<S extends BenchmarkState<S>> {
               sink::next,
               ex -> {
                 LOGGER.error(
-                    "Exception occured on setUp at rampUpIteration: {}, "
+                    "Exception occurred on setUp at rampUpIteration: {}, "
                         + "cause: {}, task won't start",
                     rampUpIteration,
                     ex,
@@ -384,7 +389,7 @@ public class BenchmarkState<S extends BenchmarkState<S>> {
       try {
         return unitOfWork.apply(i);
       } catch (Exception e) {
-        LOGGER.error("Occurred exception into unitOfWork: {}", e);
+        LOGGER.error("Occurred exception in the unitOfWork: {}", e);
         throw Exceptions.propagate(e);
       }
     };
